@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Spline from "@splinetool/react-spline";
 import { Activity, Eye, EyeOff } from "lucide-react";
@@ -42,6 +42,9 @@ type View = "login" | "register";
 export default function LoginPage() {
     const [currentView, setCurrentView] = useState<View>("login");
     const [splineLoaded, setSplineLoaded] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => { setMounted(true); }, []);
 
     /* Login state */
     const [email, setEmail] = useState("");
@@ -189,12 +192,14 @@ export default function LoginPage() {
 
             {/* ────────── RIGHT PANEL (50%) — Spline 3D ────────── */}
             <div className="hidden lg:flex w-1/2 relative overflow-hidden bg-[#4F46E5]">
-                <div className={`absolute inset-0 transition-opacity duration-[1200ms] ease-out ${splineLoaded ? 'opacity-100' : 'opacity-0'}`}>
-                    <Spline
-                        scene="https://prod.spline.design/LeL9on7xW5kFLbw6/scene.splinecode"
-                        onLoad={() => setSplineLoaded(true)}
-                    />
-                </div>
+                {mounted && (
+                    <div style={{ pointerEvents: "none" }} className={`absolute inset-0 transition-opacity duration-[1200ms] ease-out ${splineLoaded ? 'opacity-100' : 'opacity-0'}`}>
+                        <Spline
+                            scene="https://prod.spline.design/LeL9on7xW5kFLbw6/scene.splinecode"
+                            onLoad={() => setSplineLoaded(true)}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
