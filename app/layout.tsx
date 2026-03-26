@@ -1,22 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Spline_Sans } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
-import Header from "@/components/Header";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const spline = Spline_Sans({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-spline",
 });
 
 export const metadata: Metadata = {
-  title: "CareConnect — Doctor Dashboard",
-  description: "CareConnect web dashboard for healthcare providers.",
+  title: "CareConnect",
+  description: "CareConnect — the all-in-one platform for doctors and patients.",
 };
 
 export default function RootLayout({
@@ -25,22 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="h-full flex flex-row">
-        {/* Fixed sidebar */}
-        <Sidebar />
-
-        {/* Main content area offset by sidebar width */}
-        <div className="flex-1 flex flex-col ml-64">
-          <Header />
-          <main className="flex-1 p-8 bg-doctor-background overflow-y-auto">
-            {children}
-          </main>
-        </div>
-      </body>
+    <html lang="en" className={`${spline.variable} h-full antialiased`}>
+      <body className="h-full font-spline">{children}</body>
     </html>
   );
 }
