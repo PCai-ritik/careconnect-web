@@ -117,8 +117,8 @@ export default function AddPatientSheet({
                         {/* ── Panel Header ── */}
                         <div className="px-6 py-5 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-[#4F46E5]/10 text-[#4F46E5] flex items-center justify-center">
-                                    <UserPlus size={16} />
+                                <div className="w-9 h-9 rounded-xl bg-[#4F46E5] flex items-center justify-center">
+                                    <UserPlus size={18} className="text-white" />
                                 </div>
                                 <div>
                                     <h2 className="text-base font-semibold text-gray-900">Register New Patient</h2>

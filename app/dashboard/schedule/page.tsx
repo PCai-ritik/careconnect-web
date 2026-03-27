@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Video, Check, Clock, User, FileText } from "lucide-react";
+import Link from "next/link";
 
 /* ── Avatar Color Palette ────────────────────────────────────────────── */
 
@@ -272,10 +273,13 @@ export default function SchedulePage() {
                                             {/* Col 4 — Action */}
                                             <div className="flex justify-end">
                                                 {appt.status === "upcoming" ? (
-                                                    <button className="bg-white border border-gray-200 hover:border-[#4F46E5] hover:text-[#4F46E5] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
+                                                    <Link
+                                                        href={`/consultation/${appt.id}`}
+                                                        className="bg-white border border-gray-200 hover:border-[#4F46E5] hover:text-[#4F46E5] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                                    >
                                                         <Video size={14} />
                                                         Join Call
-                                                    </button>
+                                                    </Link>
                                                 ) : (
                                                     <button className="bg-white border border-gray-200 hover:border-gray-300 text-gray-500 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
                                                         <FileText size={14} />

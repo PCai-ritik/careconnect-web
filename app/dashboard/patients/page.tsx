@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Search, User, ChevronRight, UserPlus } from "lucide-react";
+import { Search, User, ChevronRight, UserPlus, Video } from "lucide-react";
+import PatientProfileSheet from "@/components/dashboard/PatientProfileSheet";
+import AddPatientSheet from "@/components/dashboard/AddPatientSheet";
 
 /* ── Avatar Color Palette ────────────────────────────────────────────── */
 
@@ -14,7 +16,7 @@ const avatarColors = [
     "bg-amber-50 text-amber-600",
 ];
 
-/* ── Mock Data (sourced from mobile app mock-data.ts) ────────────────── */
+/* ── Mock Data ───────────────────────────────────────────────────────── */
 
 const patients = [
     { id: "pt-001", name: "Sarah Johnson", age: 34, gender: "Female", condition: "Hypertension", lastVisit: "2 days ago" },
@@ -29,10 +31,15 @@ const patients = [
     { id: "pt-010", name: "Daniel Thomas", age: 55, gender: "Male", condition: "Arthritis", lastVisit: "Feb 10, 2026" },
 ];
 
+type SheetPatient = { id: string; name: string; condition: string };
+
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function PatientsPage() {
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedPatient, setSelectedPatient] = useState<SheetPatient | null>(null);
+    const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isAddPatientOpen, setIsAddPatientOpen] = useState(false);
 
     const filteredPatients = patients.filter(
         (p) =>
@@ -40,31 +47,31 @@ export default function PatientsPage() {
             p.condition.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const openProfile = (patient: SheetPatient) => {
+        setSelectedPatient(patient);
+        setIsProfileOpen(true);
+    };
+
     return (
-        <div className="max-w-7xl mx-auto font-spline pb-12">
-            <motion.div
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.35, staggerChildren: 0.08 }}
-                className="space-y-6"
-            >
-                {/* ── Page Header + Controls ── */}
-                <motion.div transition={{ duration: 0.35 }}>
+        <>
+            <div className="max-w-7xl mx-auto font-spline pb-12">
+                <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35 }}
+                    className="space-y-6"
+                >
+                    {/* ── Page Header + Controls ── */}
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
-                            Patients
-                        </h1>
+                        <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">Patients</h1>
                         <p className="text-sm text-gray-500 mt-1">
                             Manage your patient directory and medical records.
                         </p>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <div className="relative w-full sm:w-72">
-                            <Search
-                                size={16}
-                                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                            />
+                            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                             <input
                                 type="text"
                                 placeholder="Search by name or condition..."
@@ -74,81 +81,104 @@ export default function PatientsPage() {
                             />
                         </div>
 
-                        <button className="bg-[#4F46E5] hover:bg-[#4338CA] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 shadow-sm cursor-pointer">
+                        <button
+                            onClick={() => setIsAddPatientOpen(true)}
+                            className="bg-[#4F46E5] hover:bg-[#4338CA] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 shadow-sm cursor-pointer"
+                        >
                             <UserPlus size={16} />
                             Add Patient
                         </button>
                     </div>
-                </motion.div>
 
-                {/* ── The Table Card ── */}
-                <motion.div
-                    transition={{ duration: 0.35 }}
-                    className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[500px]"
-                >
-                    {/* Table Header */}
-                    <div className="hidden sm:grid grid-cols-5 gap-4 px-6 py-4 border-b border-gray-200 bg-gray-50/50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        <div>Patient</div>
-                        <div className="text-center">Demographics</div>
-                        <div className="text-center">Condition</div>
-                        <div className="text-center">Last Visit</div>
-                        <div className="text-right">Profile</div>
-                    </div>
-
-                    {/* Data Rows */}
-                    {filteredPatients.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                            <Search size={40} className="mb-3 opacity-50" />
-                            <p className="text-sm font-semibold">No patients found</p>
-                            <p className="text-xs text-gray-400 mt-1">
-                                Try a different search term
-                            </p>
+                    {/* ── The Table Card ── */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden min-h-[500px]">
+                        {/* Table Header */}
+                        <div className="hidden sm:grid grid-cols-5 gap-4 px-6 py-4 border-b border-gray-200 bg-gray-50/50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                            <div>Patient</div>
+                            <div className="text-center">Demographics</div>
+                            <div className="text-center">Condition</div>
+                            <div className="text-center">Last Visit</div>
+                            <div className="text-right">Actions</div>
                         </div>
-                    ) : (
-                        filteredPatients.map((patient, index) => (
-                            <div
-                                key={patient.id}
-                                className="grid grid-cols-1 sm:grid-cols-5 gap-4 px-6 py-4 border-b border-gray-100 last:border-0 items-center hover:bg-gray-50 transition-colors cursor-pointer group"
-                            >
-                                {/* Col 1 — Patient (Left) */}
-                                <div className="flex items-center gap-3">
-                                    <div
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${avatarColors[index % avatarColors.length]
-                                            }`}
-                                    >
-                                        <User size={18} />
-                                    </div>
-                                    <p className="text-sm font-semibold text-gray-900 truncate">
-                                        {patient.name}
-                                    </p>
-                                </div>
 
-                                {/* Col 2 — Demographics (Center) */}
-                                <div className="text-sm text-gray-600 text-center">
-                                    Age: {patient.age} • {patient.gender}
-                                </div>
-
-                                {/* Col 3 — Condition (Center) */}
-                                <div className="flex justify-center">
-                                    <span className="text-xs text-[#4F46E5] bg-[#4F46E5]/10 px-2.5 py-0.5 rounded-md font-medium">
-                                        {patient.condition}
-                                    </span>
-                                </div>
-
-                                {/* Col 4 — Last Visit (Center) */}
-                                <div className="text-sm text-gray-500 text-center">
-                                    {patient.lastVisit}
-                                </div>
-
-                                {/* Col 5 — Profile Chevron (Right) */}
-                                <div className="flex justify-end text-gray-400 group-hover:text-[#4F46E5] transition-colors">
-                                    <ChevronRight size={20} />
-                                </div>
+                        {/* Data Rows */}
+                        {filteredPatients.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                                <Search size={40} className="mb-3 opacity-50" />
+                                <p className="text-sm font-semibold">No patients found</p>
+                                <p className="text-xs text-gray-400 mt-1">Try a different search term</p>
                             </div>
-                        ))
-                    )}
+                        ) : (
+                            filteredPatients.map((patient, index) => (
+                                <div
+                                    key={patient.id}
+                                    className="grid grid-cols-1 sm:grid-cols-5 gap-4 px-6 py-4 border-b border-gray-100 last:border-0 items-center hover:bg-gray-50 transition-colors group"
+                                >
+                                    {/* Col 1 — Patient — click opens profile */}
+                                    <button
+                                        onClick={() => openProfile({ id: patient.id, name: patient.name, condition: patient.condition })}
+                                        className="flex items-center gap-3 text-left cursor-pointer"
+                                    >
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${avatarColors[index % avatarColors.length]}`}>
+                                            <User size={18} />
+                                        </div>
+                                        <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-[#4F46E5] transition-colors">
+                                            {patient.name}
+                                        </p>
+                                    </button>
+
+                                    {/* Col 2 — Demographics */}
+                                    <div className="text-sm text-gray-600 text-center">
+                                        Age: {patient.age} • {patient.gender}
+                                    </div>
+
+                                    {/* Col 3 — Condition */}
+                                    <div className="flex justify-center">
+                                        <span className="text-xs text-[#4F46E5] bg-[#4F46E5]/10 px-2.5 py-0.5 rounded-md font-medium">
+                                            {patient.condition}
+                                        </span>
+                                    </div>
+
+                                    {/* Col 4 — Last Visit */}
+                                    <div className="text-sm text-gray-500 text-center">{patient.lastVisit}</div>
+
+                                    {/* Col 5 — Actions */}
+                                    <div className="flex justify-end items-center gap-2">
+                                        {/* Start Video Call */}
+                                        <a
+                                            href={`/consultation/${patient.id}`}
+                                            className="opacity-0 group-hover:opacity-100 transition-all border border-gray-200 hover:border-[#4F46E5]/30 hover:bg-indigo-50 text-gray-500 hover:text-[#4F46E5] p-1.5 rounded-lg cursor-pointer"
+                                            title="Start Video Call"
+                                        >
+                                            <Video size={15} />
+                                        </a>
+                                        {/* View Profile */}
+                                        <button
+                                            onClick={() => openProfile({ id: patient.id, name: patient.name, condition: patient.condition })}
+                                            className="opacity-0 group-hover:opacity-100 transition-all text-gray-400 group-hover:text-[#4F46E5] cursor-pointer"
+                                            title="View Profile"
+                                        >
+                                            <ChevronRight size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </motion.div>
-            </motion.div>
-        </div>
+            </div>
+
+            {/* ── Slide-Overs ── */}
+            <PatientProfileSheet
+                patient={selectedPatient}
+                isOpen={isProfileOpen}
+                onClose={() => setIsProfileOpen(false)}
+                onNewPrescription={() => setIsProfileOpen(false)}
+            />
+            <AddPatientSheet
+                isOpen={isAddPatientOpen}
+                onClose={() => setIsAddPatientOpen(false)}
+            />
+        </>
     );
 }
