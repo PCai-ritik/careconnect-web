@@ -274,3 +274,58 @@ spline-viewer a[href*="spline"] {
 canvas+div[style*="position: absolute"][style*="bottom"] {
   display: none !important;
 }
+
+/* ── Custom Scrollbars ─────────────────────────────────────────────────── */
+
+/* Firefox (modern standard API) */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(79, 70, 229, 0.3) transparent;
+}
+
+.dark html {
+  scrollbar-color: #2a2a2a transparent;
+}
+
+/* Chrome / Edge / Safari (WebKit) */
+
+/* Size */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Thumb — light mode: soft indigo pill */
+::-webkit-scrollbar-thumb {
+  background: rgba(79, 70, 229, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 70, 229, 0.55);
+}
+
+/* Corner */
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Dark mode */
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+  border-radius: 9999px;
+}
