@@ -3,6 +3,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* White-label brand tokens — overridden at runtime by lib/theme.ts */
+  --brand-primary: #4F46E5;
+  --brand-primary-rgb: 79, 70, 229;
+  --brand-primary-hover: #4338CA;
 }
 
 /* ── Dark Mode (class strategy for Tailwind v4) ── */
@@ -218,11 +223,11 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  /* Doctor theme */
-  --color-doctor-primary: #4F46E5;
+  /* Doctor theme — derived from brand token */
+  --color-doctor-primary: var(--brand-primary);
   --color-doctor-surface: #FFFFFF;
   --color-doctor-background: #F8FAFC;
-  --color-doctor-indigo: #4F46E5;
+  --color-doctor-indigo: var(--brand-primary);
 
   /* Spline design spec tokens */
   --color-spline-bg: #F5F5F5;
@@ -280,7 +285,7 @@ canvas+div[style*="position: absolute"][style*="bottom"] {
 /* Firefox (modern standard API) */
 html {
   scrollbar-width: thin;
-  scrollbar-color: rgba(79, 70, 229, 0.3) transparent;
+  scrollbar-color: rgba(var(--brand-primary-rgb), 0.3) transparent;
 }
 
 .dark html {
@@ -302,12 +307,12 @@ html {
 
 /* Thumb — light mode: soft indigo pill */
 ::-webkit-scrollbar-thumb {
-  background: rgba(79, 70, 229, 0.3);
+  background: rgba(var(--brand-primary-rgb), 0.3);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(79, 70, 229, 0.55);
+  background: rgba(var(--brand-primary-rgb), 0.55);
 }
 
 /* Corner */

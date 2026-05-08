@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Spline from "@splinetool/react-spline";
-import { Activity, Eye, EyeOff } from "lucide-react";
+import { Activity, Eye, EyeOff, Loader2 } from "lucide-react";
+import { login, registerDoctor } from "@/lib/auth";
+import { applyDefaultBranding } from "@/lib/theme";
 
 /* ─────────────────────── Animation Variants ─────────────────────── */
 
@@ -33,7 +36,7 @@ const fadeSlide = {
 /* ─────────────────────── Shared ─────────────────────── */
 
 const inputClass =
-    "w-full h-10 bg-gray-100 text-gray-900 placeholder:text-gray-500 focus:bg-gray-50 focus:ring-2 focus:ring-[#4F46E5]/15 rounded-lg px-4 text-sm transition-all outline-none";
+    "w-full h-10 bg-gray-100 text-gray-900 placeholder:text-gray-500 focus:bg-gray-50 focus:ring-2 focus:ring-[var(--brand-primary)]/15 rounded-lg px-4 text-sm transition-all outline-none";
 
 /* ─────────────────────── Component ─────────────────────── */
 
@@ -44,7 +47,12 @@ export default function LoginPage() {
     const [splineLoaded, setSplineLoaded] = useState(false);
     const [mounted, setMounted] = useState(false);
 
-    useEffect(() => { setMounted(true); }, []);
+    useEffect(() => {
+        setMounted(true);
+        applyDefaultBranding();
+    }, []);
+
+    const router = useRouter();
 
     /* Login state */
     const [email, setEmail] = useState("");
@@ -57,6 +65,49 @@ export default function LoginPage() {
     const [regPassword, setRegPassword] = useState("");
     const [showRegPassword, setShowRegPassword] = useState(false);
 
+    /* Shared state */
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    /* ── Login Handler ── */
+    const handleLogin = async () => {
+        if (!email || !password) { setError("Please fill in all fields"); return; }
+        setLoading(true);
+        setError(null);
+        try {
+            const res = await login(email, password);
+            if (res.role === "DOCTOR") {
+                router.push("/dashboard");
+            } else {
+                setError("This portal is for doctors only. Please use the mobile app.");
+            }
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : "Login failed. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    /* ── Register Handler ── */
+    const handleRegister = async () => {
+        if (!regName || !regEmail || !regPassword) { setError("Please fill in all fields"); return; }
+        if (regPassword.length < 6) { setError("Password must be at least 6 characters"); return; }
+        setLoading(true);
+        setError(null);
+        try {
+            await registerDoctor({
+                email: regEmail,
+                password: regPassword,
+                full_name: regName,
+            });
+            router.push("/doctor-onboarding");
+        } catch (e: unknown) {
+            setError(e instanceof Error ? e.message : "Registration failed. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="flex w-screen h-screen overflow-hidden font-spline">
             {/* ────────── LEFT PANEL (50%) ────────── */}
@@ -68,11 +119,11 @@ export default function LoginPage() {
                             <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="w-full flex flex-col items-center">
                                 {/* Logo */}
                                 <motion.div variants={staggerChild} className="flex flex-col items-center mb-10">
-                                    <div className="w-16 h-16 rounded-2xl bg-[#4F46E5] flex items-center justify-center mb-3">
+                                    <div className="w-16 h-16 rounded-2xl bg-[var(--brand-primary)] flex items-center justify-center mb-3">
                                         <Activity size={32} className="text-white" />
                                     </div>
                                     <span className="text-2xl font-bold text-gray-900">CareConnect</span>
-                                    <span className="text-xs text-[#4F46E5] font-medium mt-0.5">For Doctors</span>
+                                    <span className="text-xs text-[var(--brand-primary)] font-medium mt-0.5">For Doctors</span>
                                 </motion.div>
 
                                 {/* Email */}
@@ -93,13 +144,21 @@ export default function LoginPage() {
                                     </div>
                                 </motion.div>
 
+                                {/* Error Display */}
+                                {error && currentView === "login" && (
+                                    <motion.p variants={staggerChild} className="text-sm text-red-500 text-center w-full">
+                                        {error}
+                                    </motion.p>
+                                )}
+
                                 {/* Continue → /dashboard */}
                                 <motion.button variants={staggerChild}
-                                    whileHover={{ backgroundColor: "#4338CA" }} whileTap={{ scale: 0.98 }}
+                                    whileTap={{ scale: 0.98 }}
                                     transition={{ duration: 0.15 }}
-                                    onClick={() => window.location.href = "/dashboard"}
-                                    className="w-full bg-[#4F46E5] text-white shadow-sm rounded-lg px-4 py-3 text-sm font-medium mt-6 cursor-pointer transition-all">
-                                    Continue
+                                    onClick={handleLogin}
+                                    disabled={loading}
+                                    className="w-full bg-[var(--brand-primary)] text-white shadow-sm rounded-lg px-4 py-3 text-sm font-medium mt-6 cursor-pointer transition-all disabled:opacity-70 flex items-center justify-center gap-2">
+                                    {loading ? <><Loader2 size={16} className="animate-spin" /> Signing in...</> : "Continue"}
                                 </motion.button>
 
                                 {/* Divider */}
@@ -114,7 +173,7 @@ export default function LoginPage() {
                                     whileHover={{ backgroundColor: "rgba(79,70,229,0.05)" }} whileTap={{ scale: 0.98 }}
                                     transition={{ duration: 0.15 }}
                                     onClick={() => setCurrentView("register")}
-                                    className="w-full border-2 border-[#4F46E5] text-[#4F46E5] rounded-lg px-4 py-3 text-sm font-medium cursor-pointer transition-all"
+                                    className="w-full border-2 border-[var(--brand-primary)] text-[var(--brand-primary)] rounded-lg px-4 py-3 text-sm font-medium cursor-pointer transition-all"
                                     style={{ backgroundColor: "#FFFFFF" }}>
                                     Register
                                 </motion.button>
@@ -128,7 +187,7 @@ export default function LoginPage() {
                             <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="w-full flex flex-col items-center">
                                 {/* Logo */}
                                 <motion.div variants={staggerChild} className="flex flex-col items-center mb-8">
-                                    <div className="w-14 h-14 rounded-2xl bg-[#4F46E5] flex items-center justify-center mb-3">
+                                    <div className="w-14 h-14 rounded-2xl bg-[var(--brand-primary)] flex items-center justify-center mb-3">
                                         <Activity size={28} className="text-white" />
                                     </div>
                                     <span className="text-xl font-bold text-gray-900">Create your account</span>
@@ -159,13 +218,21 @@ export default function LoginPage() {
                                     </div>
                                 </motion.div>
 
+                                {/* Error Display */}
+                                {error && currentView === "register" && (
+                                    <motion.p variants={staggerChild} className="text-sm text-red-500 text-center w-full">
+                                        {error}
+                                    </motion.p>
+                                )}
+
                                 {/* Continue → /doctor-onboarding */}
                                 <motion.button variants={staggerChild}
-                                    whileHover={{ backgroundColor: "#4338CA" }} whileTap={{ scale: 0.98 }}
+                                    whileTap={{ scale: 0.98 }}
                                     transition={{ duration: 0.15 }}
-                                    onClick={() => window.location.href = "/doctor-onboarding"}
-                                    className="w-full bg-[#4F46E5] text-white shadow-sm rounded-lg px-4 py-3 text-sm font-medium mt-6 cursor-pointer transition-all">
-                                    Continue
+                                    onClick={handleRegister}
+                                    disabled={loading}
+                                    className="w-full bg-[var(--brand-primary)] text-white shadow-sm rounded-lg px-4 py-3 text-sm font-medium mt-6 cursor-pointer transition-all disabled:opacity-70 flex items-center justify-center gap-2">
+                                    {loading ? <><Loader2 size={16} className="animate-spin" /> Creating account...</> : "Continue"}
                                 </motion.button>
 
                                 {/* Divider */}
@@ -180,7 +247,7 @@ export default function LoginPage() {
                                     whileHover={{ backgroundColor: "rgba(79,70,229,0.05)" }} whileTap={{ scale: 0.98 }}
                                     transition={{ duration: 0.15 }}
                                     onClick={() => setCurrentView("login")}
-                                    className="w-full border-2 border-[#4F46E5] text-[#4F46E5] rounded-lg px-4 py-3 text-sm font-medium cursor-pointer transition-all"
+                                    className="w-full border-2 border-[var(--brand-primary)] text-[var(--brand-primary)] rounded-lg px-4 py-3 text-sm font-medium cursor-pointer transition-all"
                                     style={{ backgroundColor: "#FFFFFF" }}>
                                     Sign In Instead
                                 </motion.button>
@@ -191,7 +258,7 @@ export default function LoginPage() {
             </div>
 
             {/* ────────── RIGHT PANEL (50%) — Spline 3D ────────── */}
-            <div className="hidden lg:flex w-1/2 relative overflow-hidden bg-[#4F46E5]">
+            <div className="hidden lg:flex w-1/2 relative overflow-hidden bg-[var(--brand-primary)]">
                 {mounted && (
                     <div style={{ pointerEvents: "none" }} className={`absolute inset-0 transition-opacity duration-[1200ms] ease-out ${splineLoaded ? 'opacity-100' : 'opacity-0'}`}>
                         <Spline

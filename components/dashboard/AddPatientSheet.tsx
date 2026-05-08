@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, UserPlus, AlertCircle, CheckCircle, Shield } from "lucide-react";
+import { X, UserPlus, AlertCircle, CheckCircle, Shield, Loader2 } from "lucide-react";
+import { addPatient } from "@/lib/dashboard";
 
 /* ── Constants (mirrors mobile) ─────────────────────────────────────── */
 
@@ -42,7 +43,7 @@ const emptyForm: FormData = {
 /* ── Shared styles ───────────────────────────────────────────────────── */
 
 const inputCls =
-    "bg-gray-50 border border-gray-200 focus:bg-white focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20 rounded-xl px-4 py-3 text-sm transition-all w-full outline-none text-gray-900 placeholder-gray-400";
+    "bg-gray-50 border border-gray-200 focus:bg-white focus:border-[var(--brand-primary)] focus:ring-2 focus:ring-[var(--brand-primary)]/20 rounded-xl px-4 py-3 text-sm transition-all w-full outline-none text-gray-900 placeholder-gray-400";
 const textareaCls = inputCls + " resize-none";
 
 /* ── Helper: Field Label ─────────────────────────────────────────────── */
@@ -61,12 +62,16 @@ function Label({ children, required }: { children: React.ReactNode; required?: b
 export default function AddPatientSheet({
     isOpen,
     onClose,
+    onPatientAdded,
 }: {
     isOpen: boolean;
     onClose: () => void;
+    onPatientAdded?: () => void;
 }) {
     const [formData, setFormData] = useState<FormData>(emptyForm);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const isFormValid =
         formData.fullName.trim() !== "" &&
@@ -79,14 +84,37 @@ export default function AddPatientSheet({
     const toggleChip = (key: "gender" | "bloodGroup", value: string) =>
         set(key, formData[key] === value ? "" : value);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!isFormValid) return;
-        setShowSuccessModal(true);
+        setIsSaving(true);
+        setError(null);
+        try {
+            await addPatient({
+                full_name: formData.fullName,
+                whatsapp_number: formData.phone,
+                date_of_birth: formData.dob || null,
+                gender: formData.gender || null,
+                blood_group: formData.bloodGroup || null,
+                address: formData.address || null,
+                aadhar_number: formData.aadhar.replace(/\s/g, "") || null,
+                allergies: formData.allergies ? formData.allergies.split(",").map(s => s.trim()).filter(Boolean) : [],
+                existing_conditions: formData.conditions ? formData.conditions.split(",").map(s => s.trim()).filter(Boolean) : [],
+                emergency_contact_name: formData.emergencyName || null,
+                emergency_contact_phone: formData.emergencyPhone || null,
+            });
+            setShowSuccessModal(true);
+            onPatientAdded?.();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to register patient. Please try again.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleDone = () => {
         setFormData(emptyForm);
         setShowSuccessModal(false);
+        setError(null);
         onClose();
     };
 
@@ -117,7 +145,7 @@ export default function AddPatientSheet({
                         {/* ── Panel Header ── */}
                         <div className="px-6 py-5 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-[#4F46E5] flex items-center justify-center">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--brand-primary)] flex items-center justify-center">
                                     <UserPlus size={18} className="text-white" />
                                 </div>
                                 <div>
@@ -140,7 +168,7 @@ export default function AddPatientSheet({
                             {/* ── Section 1: Personal Information ── */}
                             <section className={showSuccessModal ? 'opacity-50 blur-sm transition-all' : 'transition-all'}>
                                 <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                    <UserPlus size={16} className="text-[#4F46E5]" />
+                                    <UserPlus size={16} className="text-[var(--brand-primary)]" />
                                     Personal Information
                                 </h3>
                                 <div className="space-y-4">
@@ -182,7 +210,7 @@ export default function AddPatientSheet({
                                                     type="button"
                                                     onClick={() => toggleChip("gender", g)}
                                                     className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all cursor-pointer ${formData.gender === g
-                                                        ? "bg-[#4F46E5]/10 border-[#4F46E5] text-[#4F46E5]"
+                                                        ? "bg-[var(--brand-primary)]/10 border-[var(--brand-primary)] text-[var(--brand-primary)]"
                                                         : "bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300"
                                                         }`}
                                                 >
@@ -211,7 +239,7 @@ export default function AddPatientSheet({
                                                     type="button"
                                                     onClick={() => toggleChip("bloodGroup", bg)}
                                                     className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-all cursor-pointer ${formData.bloodGroup === bg
-                                                        ? "bg-[#4F46E5]/10 border-[#4F46E5] text-[#4F46E5]"
+                                                        ? "bg-[var(--brand-primary)]/10 border-[var(--brand-primary)] text-[var(--brand-primary)]"
                                                         : "bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300"
                                                         }`}
                                                 >
@@ -277,60 +305,71 @@ export default function AddPatientSheet({
                                     </div>
                                 </div>
                             </section>
-
-                            {/* ── Success Overlay ── */}
-                            <AnimatePresence>
-                                {showSuccessModal && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        exit={{ opacity: 0 }}
-                                        className="absolute inset-0 z-50 bg-white/40 backdrop-blur-md flex items-center justify-center p-6 pointer-events-auto"
-                                    >
-                                        <motion.div
-                                            initial={{ scale: 0.95, y: 10 }}
-                                            animate={{ scale: 1, y: 0 }}
-                                            className="bg-white border border-gray-200 shadow-2xl rounded-2xl p-8 max-w-sm w-full text-center flex flex-col items-center"
-                                        >
-                                            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
-                                                <CheckCircle size={32} />
-                                            </div>
-                                            <h3 className="text-xl font-bold text-gray-900">Patient Registered</h3>
-                                            <p className="text-sm text-gray-500 mt-2 mb-6">
-                                                <span className="font-medium text-gray-800">{formData.fullName}</span> has been
-                                                successfully added to your directory.
-                                            </p>
-                                            <button
-                                                onClick={handleDone}
-                                                className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-xl font-medium transition-all cursor-pointer shadow-md"
-                                            >
-                                                Done
-                                            </button>
-                                        </motion.div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
                         </div>
 
+                        {/* ── Success Overlay (covers entire panel) ── */}
+                        <AnimatePresence>
+                            {showSuccessModal && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="absolute inset-0 z-50 bg-white/80 backdrop-blur-md flex items-center justify-center p-6"
+                                >
+                                    <motion.div
+                                        initial={{ scale: 0.95, y: 10 }}
+                                        animate={{ scale: 1, y: 0 }}
+                                        className="bg-white border border-gray-200 shadow-2xl rounded-2xl p-8 max-w-sm w-full text-center flex flex-col items-center"
+                                    >
+                                        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4">
+                                            <CheckCircle size={32} />
+                                        </div>
+                                        <h3 className="text-xl font-bold text-gray-900">Patient Registered</h3>
+                                        <p className="text-sm text-gray-500 mt-2 mb-6">
+                                            <span className="font-medium text-gray-800">{formData.fullName}</span> has been
+                                            successfully added to your directory.
+                                        </p>
+                                        <button
+                                            onClick={handleDone}
+                                            className="w-full bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white py-3 rounded-xl font-medium transition-all cursor-pointer shadow-md"
+                                        >
+                                            Done
+                                        </button>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {/* ── Panel Footer ── */}
-                        <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 shrink-0">
-                            <button
-                                onClick={onClose}
-                                className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={!isFormValid}
-                                className={`px-6 py-2.5 rounded-xl text-sm font-medium text-white shadow-sm transition-all flex items-center gap-2 ${isFormValid
-                                    ? "bg-[#4F46E5] hover:bg-[#4338CA] cursor-pointer"
-                                    : "bg-[#4F46E5]/50 cursor-not-allowed"
-                                    }`}
-                            >
-                                <UserPlus size={15} />
-                                Register Patient
-                            </button>
+                        <div className="p-6 border-t border-gray-200 bg-gray-50 shrink-0">
+                            {error && (
+                                <p className="text-sm text-red-500 mb-3 flex items-center gap-1.5">
+                                    <AlertCircle size={14} />
+                                    {error}
+                                </p>
+                            )}
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={onClose}
+                                    className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={!isFormValid || isSaving}
+                                    className={`px-6 py-2.5 rounded-xl text-sm font-medium text-white shadow-sm transition-all flex items-center gap-2 ${isFormValid && !isSaving
+                                        ? "bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] cursor-pointer"
+                                        : "bg-[var(--brand-primary)]/50 cursor-not-allowed"
+                                        }`}
+                                >
+                                    {isSaving ? (
+                                        <><Loader2 size={15} className="animate-spin" /> Registering…</>
+                                    ) : (
+                                        <><UserPlus size={15} /> Register Patient</>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </motion.div>
                 </>

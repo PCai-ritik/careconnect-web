@@ -1,48 +1,103 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, User, Stethoscope, Mail, Phone, MapPin, CheckCircle } from "lucide-react";
+import { X, User, Stethoscope, Mail, Phone, MapPin, CheckCircle, FileText, CreditCard } from "lucide-react";
+import { getDoctorProfile, updateDoctorProfile, type DoctorProfile } from "@/lib/dashboard";
 
 interface EditProfileSheetProps {
     isOpen: boolean;
     onClose: () => void;
+    onSaved?: () => void;
 }
 
-export default function EditProfileSheet({ isOpen, onClose }: EditProfileSheetProps) {
-    const [formData, setFormData] = useState({
-        fullName: "Dr. Rohan Mehta",
-        specialization: "Cardiologist",
-        email: "rohan.mehta@careconnect.in",
-        phone: "+91 98765 43210",
-        clinicAddress: "42 MG Road, Bengaluru, Karnataka 560001",
-    });
+interface FormFields {
+    fullName: string;
+    specialization: string;
+    email: string;
+    phone: string;
+    licenseNumber: string;
+    hospitalAffiliation: string;
+    bio: string;
+    consultationFee: string;
+}
+
+const emptyForm: FormFields = {
+    fullName: "",
+    specialization: "",
+    email: "",
+    phone: "",
+    licenseNumber: "",
+    hospitalAffiliation: "",
+    bio: "",
+    consultationFee: "",
+};
+
+export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfileSheetProps) {
+    const [formData, setFormData] = useState<FormFields>(emptyForm);
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const handleChange = (field: keyof typeof formData, value: string) => {
+    // Fetch current profile when sheet opens
+    useEffect(() => {
+        if (!isOpen) return;
+        setShowSuccess(false);
+        setIsLoading(true);
+        getDoctorProfile()
+            .then((p) => {
+                setFormData({
+                    fullName: p.full_name || "",
+                    specialization: p.specialization || "",
+                    email: "", // email lives on User, not Doctor — read-only
+                    phone: p.phone_number || "",
+                    licenseNumber: p.license_number || "",
+                    hospitalAffiliation: p.hospital_affiliation || "",
+                    bio: p.bio || "",
+                    consultationFee: p.consultation_fee ? String(p.consultation_fee) : "",
+                });
+            })
+            .catch(() => { })
+            .finally(() => setIsLoading(false));
+    }, [isOpen]);
+
+    const handleChange = (field: keyof FormFields, value: string) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         setIsSaving(true);
-        setTimeout(() => {
-            setIsSaving(false);
+        try {
+            await updateDoctorProfile({
+                full_name: formData.fullName || undefined,
+                specialization: formData.specialization || undefined,
+                phone_number: formData.phone || undefined,
+                license_number: formData.licenseNumber || undefined,
+                hospital_affiliation: formData.hospitalAffiliation || undefined,
+                bio: formData.bio || undefined,
+                consultation_fee: formData.consultationFee ? parseFloat(formData.consultationFee) : undefined,
+            });
             setShowSuccess(true);
+            onSaved?.();
             setTimeout(() => {
                 setShowSuccess(false);
                 onClose();
             }, 1800);
-        }, 800);
+        } catch (err) {
+            console.error("Failed to save profile:", err);
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const fields = [
-        { key: "fullName", label: "Full Name", icon: User, type: "text", placeholder: "Dr. First Last" },
-        { key: "specialization", label: "Specialization", icon: Stethoscope, type: "text", placeholder: "e.g. Cardiologist" },
-        { key: "email", label: "Email", icon: Mail, type: "email", placeholder: "you@example.com" },
-        { key: "phone", label: "Phone", icon: Phone, type: "tel", placeholder: "+91 XXXXX XXXXX" },
-        { key: "clinicAddress", label: "Clinic Address", icon: MapPin, type: "text", placeholder: "Street, City, State" },
-    ] as const;
+        { key: "fullName" as const, label: "Full Name", icon: User, type: "text", placeholder: "Dr. First Last" },
+        { key: "specialization" as const, label: "Specialization", icon: Stethoscope, type: "text", placeholder: "e.g. Cardiologist" },
+        { key: "phone" as const, label: "Phone / WhatsApp", icon: Phone, type: "tel", placeholder: "+91 XXXXX XXXXX" },
+        { key: "licenseNumber" as const, label: "License / Registration No.", icon: FileText, type: "text", placeholder: "e.g. NMC-78291" },
+        { key: "hospitalAffiliation" as const, label: "Hospital / Clinic", icon: MapPin, type: "text", placeholder: "Hospital or Clinic name" },
+        { key: "consultationFee" as const, label: "Consultation Fee (₹)", icon: CreditCard, type: "number", placeholder: "e.g. 500" },
+    ];
 
     return (
         <AnimatePresence>
@@ -93,7 +148,7 @@ export default function EditProfileSheet({ isOpen, onClose }: EditProfileSheetPr
                         {/* Header */}
                         <div className="px-6 py-5 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="w-9 h-9 rounded-xl bg-[#4F46E5] flex items-center justify-center shrink-0">
+                                <div className="w-9 h-9 rounded-xl bg-[var(--brand-primary)] flex items-center justify-center shrink-0">
                                     <User size={18} className="text-white" />
                                 </div>
                                 <div>
@@ -111,23 +166,45 @@ export default function EditProfileSheet({ isOpen, onClose }: EditProfileSheetPr
 
                         {/* Form Body */}
                         <div className={`flex-1 overflow-y-auto p-6 space-y-5 ${showSuccess ? "pointer-events-none overflow-hidden" : ""}`}>
-                            {fields.map(({ key, label, icon: Icon, type, placeholder }) => (
-                                <div key={key}>
-                                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
-                                        {label}
-                                    </label>
-                                    <div className="relative">
-                                        <Icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                                        <input
-                                            type={type}
-                                            value={formData[key]}
-                                            onChange={(e) => handleChange(key, e.target.value)}
-                                            placeholder={placeholder}
-                                            className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#4F46E5]/20 focus:border-[#4F46E5] transition-all bg-white"
+                            {isLoading ? (
+                                <div className="flex items-center justify-center h-40">
+                                    <div className="animate-spin h-6 w-6 border-2 border-gray-300 border-t-[var(--brand-primary)] rounded-full" />
+                                </div>
+                            ) : (
+                                <>
+                                    {fields.map(({ key, label, icon: Icon, type, placeholder }) => (
+                                        <div key={key}>
+                                            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                                                {label}
+                                            </label>
+                                            <div className="relative">
+                                                <Icon size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                                                <input
+                                                    type={type}
+                                                    value={formData[key]}
+                                                    onChange={(e) => handleChange(key, e.target.value)}
+                                                    placeholder={placeholder}
+                                                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-all bg-white"
+                                                />
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {/* Bio textarea */}
+                                    <div>
+                                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1.5">
+                                            Bio / About
+                                        </label>
+                                        <textarea
+                                            rows={3}
+                                            value={formData.bio}
+                                            onChange={(e) => handleChange("bio", e.target.value)}
+                                            placeholder="A short bio about your practice..."
+                                            className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)]/20 focus:border-[var(--brand-primary)] transition-all bg-white resize-none"
                                         />
                                     </div>
-                                </div>
-                            ))}
+                                </>
+                            )}
                         </div>
 
                         {/* Footer */}
@@ -140,8 +217,8 @@ export default function EditProfileSheet({ isOpen, onClose }: EditProfileSheetPr
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={isSaving}
-                                className="flex-1 py-2.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white text-sm font-medium transition-colors cursor-pointer disabled:opacity-70 shadow-sm"
+                                disabled={isSaving || isLoading}
+                                className="flex-1 py-2.5 rounded-xl bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white text-sm font-medium transition-colors cursor-pointer disabled:opacity-70 shadow-sm"
                             >
                                 {isSaving ? "Saving…" : "Save Changes"}
                             </button>

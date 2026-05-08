@@ -24,7 +24,7 @@ export default function Header() {
                         <button
                             type="button"
                             onClick={() => setIsDropdownOpen((o) => !o)}
-                            className="bg-[#4F46E5] text-white hover:bg-[#4338CA] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 shadow-sm transition-all duration-200 cursor-pointer"
+                            className="bg-[var(--brand-primary)] text-white hover:bg-[var(--brand-primary-hover)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-1.5 shadow-sm transition-all duration-200 cursor-pointer"
                         >
                             New
                             <ChevronDown

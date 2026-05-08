@@ -83,7 +83,7 @@ export default function EarningsPage() {
                     className="grid grid-cols-1 md:grid-cols-3 gap-6"
                 >
                     {/* Indigo Hero — Available Balance */}
-                    <div className="bg-gradient-to-br from-[#4F46E5] to-[#4338CA] rounded-xl p-6 text-white shadow-lg">
+                    <div className="bg-gradient-to-br from-[var(--brand-primary)] to-[var(--brand-primary-hover)] rounded-xl p-6 text-white shadow-lg">
                         <div className="flex items-center justify-between mb-4">
                             <p className="text-sm font-medium text-white/80">
                                 Available Balance
@@ -154,8 +154,8 @@ export default function EarningsPage() {
                                 <div className="flex items-center gap-3">
                                     <div
                                         className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${txn.direction === "in"
-                                                ? "bg-green-50 text-green-600"
-                                                : "bg-amber-50 text-amber-600"
+                                            ? "bg-green-50 text-green-600"
+                                            : "bg-amber-50 text-amber-600"
                                             }`}
                                     >
                                         {txn.direction === "in" ? (
@@ -176,8 +176,8 @@ export default function EarningsPage() {
                                 <div className="flex justify-center">
                                     <span
                                         className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${txn.status === "completed"
-                                                ? "bg-green-50 text-green-700 border border-green-200"
-                                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                                            ? "bg-green-50 text-green-700 border border-green-200"
+                                            : "bg-amber-50 text-amber-700 border border-amber-200"
                                             }`}
                                     >
                                         {txn.status === "completed" ? "Completed" : "Pending"}
@@ -187,8 +187,8 @@ export default function EarningsPage() {
                                 {/* Col 4 — Amount (Right) */}
                                 <p
                                     className={`text-sm font-semibold text-right ${txn.direction === "out"
-                                            ? "text-amber-600"
-                                            : "text-gray-900"
+                                        ? "text-amber-600"
+                                        : "text-gray-900"
                                         }`}
                                 >
                                     {txn.direction === "out" ? `- ${txn.amount}` : txn.amount}
@@ -220,7 +220,7 @@ export default function EarningsPage() {
                                         </p>
                                     </div>
                                 </div>
-                                <button className="mt-3 w-full text-center text-sm font-medium text-[#4F46E5] hover:text-[#4338CA] transition-colors cursor-pointer">
+                                <button className="mt-3 w-full text-center text-sm font-medium text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] transition-colors cursor-pointer">
                                     Change Account
                                 </button>
                             </div>

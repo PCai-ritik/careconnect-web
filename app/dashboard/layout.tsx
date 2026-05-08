@@ -1,5 +1,7 @@
 import Sidebar from "@/components/dashboard/Sidebar";
 import Header from "@/components/dashboard/Header";
+import AuthGuard from "@/components/dashboard/AuthGuard";
+import ThemeInitializer from "@/components/ThemeInitializer";
 import { Smartphone } from "lucide-react";
 
 export default function DashboardLayout({
@@ -9,11 +11,14 @@ export default function DashboardLayout({
 }) {
     return (
         <>
-            {/* ── Mobile Hard Gate (phones only, no escape) ── */}
+            {/* Auth guard — redirect to /login if no token */}
+            <AuthGuard />
+            {/* White-label branding — sets CSS variables on mount */}
+            <ThemeInitializer />
             <div className="fixed inset-0 z-[100] bg-white flex flex-col items-center justify-center p-6 text-center md:hidden">
                 {/* Icon */}
                 <div className="w-20 h-20 rounded-full flex items-center justify-center"
-                    style={{ background: "linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)" }}
+                    style={{ background: "linear-gradient(135deg, var(--brand-primary) 0%, #7C3AED 100%)" }}
                 >
                     <Smartphone size={36} className="text-white" />
                 </div>

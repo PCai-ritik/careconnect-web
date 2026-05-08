@@ -1,0 +1,44 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getToken } from "@/lib/api";
+
+/**
+ * Auth guard — checks for an access token on mount and on focus.
+ * If no token is found, redirects to /login.
+ * Renders nothing — just acts as a side-effect.
+ */
+export default function AuthGuard() {
+    const router = useRouter();
+    const [checked, setChecked] = useState(false);
+
+    useEffect(() => {
+        const check = () => {
+            const token = getToken();
+            if (!token) {
+                router.replace("/login");
+            } else {
+                setChecked(true);
+            }
+        };
+
+        check();
+
+        // Also re-check when user tabs back (token may have been cleared)
+        const handleFocus = () => check();
+        window.addEventListener("focus", handleFocus);
+        return () => window.removeEventListener("focus", handleFocus);
+    }, [router]);
+
+    // Don't render children until check passes (prevents flash of dashboard)
+    if (!checked) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+                <div className="w-8 h-8 border-3 border-gray-200 border-t-[var(--brand-primary)] rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    return null;
+}

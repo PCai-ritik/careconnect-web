@@ -1,83 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     X, FileText, User, Package, ChevronDown, ChevronRight,
     Heart, Activity, Thermometer, TrendingUp, AlertCircle,
-    Phone, MapPin, Droplets, Calendar, Clock, Video,
+    Phone, MapPin, Droplets, Calendar, Clock, Video, Loader2,
 } from "lucide-react";
-
-/* ── Types (matching mobile 1:1) ────────────────────────────────────── */
-
-interface ConsultationRecord {
-    id: string;
-    date: string;
-    diagnosis: string;
-    symptoms: string;
-    treatment: string;
-    prescriptions: string[];
-    followUp: string | null;
-    vitals: { bp: string; pulse: string; temp: string; weight: string };
-}
-
-/* ── Mock Data (same as mobile mock) ────────────────────────────────── */
-
-const MOCK_PROFILE = {
-    phone: "+91 98765 43210",
-    dateOfBirth: "Mar 15, 1990",
-    gender: "Female",
-    bloodGroup: "B+",
-    address: "42 Residency Rd, Bengaluru",
-    allergies: ["Penicillin", "Sulfa Drugs"],
-    existingConditions: ["Hypertension", "Mild Asthma"],
-    emergencyContact: { name: "Vikram Gupta", phone: "+91 98765 43211" },
-};
-
-const MOCK_CONSULTATIONS: ConsultationRecord[] = [
-    {
-        id: "1", date: "Jan 10, 2026", diagnosis: "Upper Respiratory Infection",
-        symptoms: "Persistent cough, sore throat, mild fever (99.5°F)",
-        treatment: "Prescribed antibiotics course, rest advised, increased fluid intake",
-        prescriptions: ["Amoxicillin 500mg — 3× daily for 7 days", "Acetaminophen 500mg — as needed", "Cough syrup — 10ml twice daily"],
-        followUp: "Jan 17, 2026",
-        vitals: { bp: "120/80", pulse: "78 bpm", temp: "99.5°F", weight: "72 kg" },
-    },
-    {
-        id: "2", date: "Dec 15, 2025", diagnosis: "Annual Health Checkup — All Clear",
-        symptoms: "Routine examination, no complaints",
-        treatment: "Continue current lifestyle, recommended vitamin D supplements",
-        prescriptions: ["Vitamin D3 60K — Once weekly for 8 weeks"],
-        followUp: null,
-        vitals: { bp: "118/76", pulse: "72 bpm", temp: "98.6°F", weight: "71 kg" },
-    },
-    {
-        id: "3", date: "Nov 05, 2025", diagnosis: "Migraine with Aura",
-        symptoms: "Severe headache, light sensitivity, nausea, visual disturbances",
-        treatment: "Prescribed migraine-specific medication, lifestyle modifications advised",
-        prescriptions: ["Sumatriptan 50mg — as needed", "Metoclopramide 10mg — for nausea"],
-        followUp: "Dec 05, 2025",
-        vitals: { bp: "125/82", pulse: "80 bpm", temp: "98.4°F", weight: "71 kg" },
-    },
-    {
-        id: "4", date: "Sep 20, 2025", diagnosis: "Seasonal Allergies",
-        symptoms: "Sneezing, runny nose, itchy eyes",
-        treatment: "Antihistamine medication, nasal spray",
-        prescriptions: ["Cetirizine 10mg — once daily for 14 days", "Fluticasone nasal spray — twice daily"],
-        followUp: null,
-        vitals: { bp: "120/78", pulse: "74 bpm", temp: "98.6°F", weight: "70 kg" },
-    },
-];
-
-/* ── Avatar color (same hash as mobile) ─────────────────────────────── */
-
-const AVATAR_COLORS = ["#C7D2FE", "#A5B4FC", "#BAE6FD", "#99F6E4", "#D9F99D", "#FDE68A", "#FECACA", "#DDD6FE"];
-function avatarColor(name: string): string {
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
+import {
+    getPatientRecords,
+    getDoctorProfile,
+    createAppointment,
+    type PatientResponse,
+    type MedicalRecordResponse,
+} from "@/lib/dashboard";
+import { getMe } from "@/lib/auth";
 
 /* ── Tab config ──────────────────────────────────────────────────────── */
 
@@ -88,28 +26,54 @@ const TABS: { id: TabId; label: string; Icon: React.ElementType }[] = [
     { id: "medications", label: "Medications", Icon: Package },
 ];
 
+/* ── Helpers ──────────────────────────────────────────────────────────── */
+
+function fmtDate(iso: string | null): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 /* ── History Tab ─────────────────────────────────────────────────────── */
 
-function HistoryTab() {
+function HistoryTab({ records, loading }: { records: MedicalRecordResponse[]; loading: boolean }) {
     const [openId, setOpenId] = useState<string | null>(null);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                <Loader2 size={16} className="animate-spin" /> Loading history…
+            </div>
+        );
+    }
+
+    if (records.length === 0) {
+        return (
+            <div className="text-center py-12">
+                <FileText size={32} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-sm text-gray-400">No consultation history yet.</p>
+            </div>
+        );
+    }
+
     return (
         <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                Past Consultations ({MOCK_CONSULTATIONS.length})
+                Past Consultations ({records.length})
             </p>
             <div className="space-y-2">
-                {MOCK_CONSULTATIONS.map((c) => {
+                {records.map((c) => {
                     const isOpen = openId === c.id;
                     return (
                         <div key={c.id} className="rounded-xl border border-gray-200 overflow-hidden">
                             {/* Accordion header */}
                             <button
                                 onClick={() => setOpenId(isOpen ? null : c.id)}
-                                className={`w-full flex items-center justify-between p-4 text-left transition-colors cursor-pointer ${isOpen ? "bg-[#4F46E5]/8 border-b border-[#4F46E5]/15" : "hover:bg-gray-50"}`}
+                                className={`w-full flex items-center justify-between p-4 text-left transition-colors cursor-pointer ${isOpen ? "bg-[var(--brand-primary)]/8 border-b border-[var(--brand-primary)]/15" : "hover:bg-gray-50"}`}
                             >
                                 <div>
                                     <p className="text-sm font-semibold text-gray-900">{c.diagnosis}</p>
-                                    <p className="text-xs text-gray-400 mt-0.5">{c.date}</p>
+                                    <p className="text-xs text-gray-400 mt-0.5">{fmtDate(c.created_at)}</p>
                                 </div>
                                 <div className="flex items-center gap-2 shrink-0 ml-3">
                                     <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
@@ -131,56 +95,69 @@ function HistoryTab() {
                                     >
                                         <div className="p-4 space-y-4 bg-gray-50">
                                             {/* Vitals grid */}
-                                            <div>
-                                                <p className="text-xs font-medium text-gray-400 mb-2">Vitals</p>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {[
-                                                        { Icon: Heart, color: "text-red-500", label: `BP: ${c.vitals.bp}` },
-                                                        { Icon: Activity, color: "text-pink-500", label: `Pulse: ${c.vitals.pulse}` },
-                                                        { Icon: Thermometer, color: "text-orange-500", label: `Temp: ${c.vitals.temp}` },
-                                                        { Icon: TrendingUp, color: "text-blue-500", label: `Weight: ${c.vitals.weight}` },
-                                                    ].map(({ Icon, color, label }) => (
-                                                        <div key={label} className="flex items-center gap-1.5 text-sm text-gray-700">
-                                                            <Icon size={13} className={color} />
-                                                            {label}
-                                                        </div>
-                                                    ))}
+                                            {c.vitals && Object.keys(c.vitals).length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-medium text-gray-400 mb-2">Vitals</p>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {[
+                                                            { Icon: Heart, color: "text-red-500", label: `BP: ${c.vitals.bp || "—"}` },
+                                                            { Icon: Activity, color: "text-pink-500", label: `Pulse: ${c.vitals.pulse || "—"}` },
+                                                            { Icon: Thermometer, color: "text-orange-500", label: `Temp: ${c.vitals.temp || "—"}` },
+                                                            { Icon: TrendingUp, color: "text-blue-500", label: `Weight: ${c.vitals.weight || "—"}` },
+                                                        ].map(({ Icon, color, label }) => (
+                                                            <div key={label} className="flex items-center gap-1.5 text-sm text-gray-700">
+                                                                <Icon size={13} className={color} />
+                                                                {label}
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
 
-                                            <div className="h-px bg-gray-100" />
+                                            {c.vitals && Object.keys(c.vitals).length > 0 && <div className="h-px bg-gray-100" />}
 
                                             {/* Symptoms */}
-                                            <div>
-                                                <p className="text-xs font-medium text-gray-400 mb-1">Symptoms</p>
-                                                <p className="text-sm text-gray-700 leading-relaxed">{c.symptoms}</p>
-                                            </div>
+                                            {c.symptoms && (
+                                                <div>
+                                                    <p className="text-xs font-medium text-gray-400 mb-1">Symptoms</p>
+                                                    <p className="text-sm text-gray-700 leading-relaxed">{c.symptoms}</p>
+                                                </div>
+                                            )}
 
                                             {/* Treatment */}
-                                            <div>
-                                                <p className="text-xs font-medium text-gray-400 mb-1">Treatment</p>
-                                                <p className="text-sm text-gray-700 leading-relaxed">{c.treatment}</p>
-                                            </div>
+                                            {c.treatment && (
+                                                <div>
+                                                    <p className="text-xs font-medium text-gray-400 mb-1">Treatment</p>
+                                                    <p className="text-sm text-gray-700 leading-relaxed">{c.treatment}</p>
+                                                </div>
+                                            )}
 
                                             {/* Prescriptions */}
-                                            <div>
-                                                <p className="text-xs font-medium text-gray-400 mb-2">Prescriptions</p>
-                                                <div className="space-y-1.5">
-                                                    {c.prescriptions.map((rx, i) => (
-                                                        <div key={i} className="flex items-start gap-2">
-                                                            <Package size={13} className="text-indigo-500 mt-0.5 shrink-0" />
-                                                            <p className="text-sm text-gray-700">{rx}</p>
-                                                        </div>
-                                                    ))}
+                                            {c.prescriptions.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs font-medium text-gray-400 mb-2">Prescriptions</p>
+                                                    <div className="space-y-1.5">
+                                                        {c.prescriptions.map((rx) => (
+                                                            <div key={rx.id} className="flex items-start gap-2">
+                                                                <Package size={13} className="text-indigo-500 mt-0.5 shrink-0" />
+                                                                <p className="text-sm text-gray-700">
+                                                                    {rx.medication_name}
+                                                                    {rx.dosage ? ` ${rx.dosage}` : ""}
+                                                                    {rx.frequency ? ` — ${rx.frequency}` : ""}
+                                                                    {rx.duration ? ` (${rx.duration})` : ""}
+                                                                </p>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
+                                            )}
 
                                             {/* Follow-up */}
-                                            {c.followUp && (
+                                            {c.follow_up_date && (
                                                 <div className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-lg p-3">
                                                     <Clock size={13} className="text-amber-600 shrink-0" />
                                                     <p className="text-sm text-amber-700 font-medium">
-                                                        Follow-up: {c.followUp}
+                                                        Follow-up: {fmtDate(c.follow_up_date)}
                                                     </p>
                                                 </div>
                                             )}
@@ -198,8 +175,7 @@ function HistoryTab() {
 
 /* ── Profile Tab ─────────────────────────────────────────────────────── */
 
-function ProfileTab({ patientName }: { patientName: string }) {
-    const p = MOCK_PROFILE;
+function ProfileTab({ patient }: { patient: PatientResponse }) {
     return (
         <div className="space-y-6">
             {/* Personal information */}
@@ -207,11 +183,11 @@ function ProfileTab({ patientName }: { patientName: string }) {
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Personal Information</p>
                 <div className="space-y-3">
                     {[
-                        { Icon: User, label: "Full Name", value: patientName },
-                        { Icon: Calendar, label: "Date of Birth", value: p.dateOfBirth },
-                        { Icon: Phone, label: "Phone", value: p.phone },
-                        { Icon: MapPin, label: "Address", value: p.address },
-                        { Icon: Droplets, label: "Blood Group", value: p.bloodGroup },
+                        { Icon: User, label: "Full Name", value: patient.full_name },
+                        { Icon: Calendar, label: "Date of Birth", value: patient.date_of_birth ? fmtDate(patient.date_of_birth) : "—" },
+                        { Icon: Phone, label: "Phone", value: patient.whatsapp_number || "—" },
+                        { Icon: MapPin, label: "Address", value: patient.address || "—" },
+                        { Icon: Droplets, label: "Blood Group", value: patient.blood_group || "—" },
                     ].map(({ Icon, label, value }) => (
                         <div key={label} className="flex items-center gap-3">
                             <Icon size={15} className="text-gray-400 shrink-0" />
@@ -233,7 +209,7 @@ function ProfileTab({ patientName }: { patientName: string }) {
                     <p className="text-sm font-semibold text-gray-800">Known Allergies</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    {p.allergies.length > 0 ? p.allergies.map((a) => (
+                    {(patient.allergies && patient.allergies.length > 0) ? patient.allergies.map((a) => (
                         <span key={a} className="text-xs bg-red-50 text-red-600 border border-red-100 px-3 py-1 rounded-full font-medium">{a}</span>
                     )) : <span className="text-sm text-gray-400">No known allergies</span>}
                 </div>
@@ -246,44 +222,72 @@ function ProfileTab({ patientName }: { patientName: string }) {
                     <p className="text-sm font-semibold text-gray-800">Existing Conditions</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                    {p.existingConditions.length > 0 ? p.existingConditions.map((c) => (
+                    {(patient.existing_conditions && patient.existing_conditions.length > 0) ? patient.existing_conditions.map((c) => (
                         <span key={c} className="text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-3 py-1 rounded-full font-medium">{c}</span>
                     )) : <span className="text-sm text-gray-400">No existing conditions</span>}
                 </div>
             </div>
 
             {/* Emergency contact */}
-            <div>
-                <p className="text-sm font-semibold text-gray-800 mb-2">Emergency Contact</p>
-                <div className="bg-gray-50 rounded-xl border border-gray-100 p-3">
-                    <p className="text-sm font-medium text-gray-900">{p.emergencyContact.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">{p.emergencyContact.phone}</p>
+            {(patient.emergency_contact_name || patient.emergency_contact_phone) && (
+                <div>
+                    <p className="text-sm font-semibold text-gray-800 mb-2">Emergency Contact</p>
+                    <div className="bg-gray-50 rounded-xl border border-gray-100 p-3">
+                        <p className="text-sm font-medium text-gray-900">{patient.emergency_contact_name || "—"}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{patient.emergency_contact_phone || "—"}</p>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }
 
 /* ── Medications Tab ─────────────────────────────────────────────────── */
 
-function MedicationsTab() {
-    const allMeds = MOCK_CONSULTATIONS.flatMap((c) =>
-        c.prescriptions.map((rx) => ({ rx, date: c.date, diagnosis: c.diagnosis }))
+function MedicationsTab({ records, loading }: { records: MedicalRecordResponse[]; loading: boolean }) {
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-12 text-gray-400 gap-2">
+                <Loader2 size={16} className="animate-spin" /> Loading medications…
+            </div>
+        );
+    }
+
+    const allMeds = records.flatMap((r) =>
+        r.prescriptions.map((rx) => ({
+            rx,
+            date: r.created_at,
+            diagnosis: r.diagnosis,
+        }))
     );
+
+    if (allMeds.length === 0) {
+        return (
+            <div className="text-center py-12">
+                <Package size={32} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-sm text-gray-400">No medications prescribed yet.</p>
+            </div>
+        );
+    }
+
     return (
         <div>
             <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
                 Current & Past Medications
             </p>
             <div className="space-y-2">
-                {allMeds.map(({ rx, date, diagnosis }, i) => (
-                    <div key={i} className="flex items-start gap-3 p-3 border border-gray-200 rounded-xl">
+                {allMeds.map(({ rx, date, diagnosis }) => (
+                    <div key={rx.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-xl">
                         <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0">
                             <Package size={15} className="text-indigo-500" />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-gray-900">{rx}</p>
-                            <p className="text-xs text-gray-400 mt-0.5">Prescribed {date} · {diagnosis}</p>
+                            <p className="text-sm font-medium text-gray-900">
+                                {rx.medication_name}
+                                {rx.dosage ? ` ${rx.dosage}` : ""}
+                                {rx.frequency ? ` — ${rx.frequency}` : ""}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-0.5">Prescribed {fmtDate(date)} · {diagnosis}</p>
                         </div>
                     </div>
                 ))}
@@ -300,12 +304,32 @@ export default function PatientProfileSheet({
     onClose,
     onNewPrescription,
 }: {
-    patient: { id: string; name: string; condition?: string } | null;
+    patient: PatientResponse | null;
     isOpen: boolean;
     onClose: () => void;
     onNewPrescription?: () => void;
 }) {
     const [activeTab, setActiveTab] = useState<TabId>("history");
+    const [records, setRecords] = useState<MedicalRecordResponse[]>([]);
+    const [loadingRecords, setLoadingRecords] = useState(false);
+    const [startingCall, setStartingCall] = useState(false);
+    const router = useRouter();
+
+    // Fetch medical records when sheet opens
+    useEffect(() => {
+        if (isOpen && patient) {
+            setLoadingRecords(true);
+            getPatientRecords(patient.id)
+                .then(setRecords)
+                .catch(() => setRecords([]))
+                .finally(() => setLoadingRecords(false));
+        }
+        if (!isOpen) {
+            setRecords([]);
+            setActiveTab("history");
+        }
+    }, [isOpen, patient?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
     if (!patient) return null;
 
     return (
@@ -335,13 +359,13 @@ export default function PatientProfileSheet({
                         {/* Header */}
                         <div className="px-6 py-5 border-b border-gray-200 bg-gray-50/50 flex items-start justify-between shrink-0">
                             <div className="flex items-center gap-3">
-                                <div className="w-14 h-14 rounded-full bg-[#4F46E5] flex items-center justify-center shrink-0">
+                                <div className="w-14 h-14 rounded-full bg-[var(--brand-primary)] flex items-center justify-center shrink-0">
                                     <User size={28} className="text-white" />
                                 </div>
                                 <div>
-                                    <h2 className="text-base font-bold text-gray-900">{patient.name}</h2>
+                                    <h2 className="text-base font-bold text-gray-900">{patient.full_name}</h2>
                                     <p className="text-xs text-gray-400 mt-0.5">
-                                        ID: #{patient.id} • {patient.condition ?? "General Consultation"}
+                                        {patient.gender || "—"} · {patient.blood_group || "—"} · {patient.whatsapp_number || "—"}
                                     </p>
                                 </div>
                             </div>
@@ -360,7 +384,7 @@ export default function PatientProfileSheet({
                                     key={id}
                                     onClick={() => setActiveTab(id)}
                                     className={`flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium border-b-2 transition-all cursor-pointer ${activeTab === id
-                                        ? "border-[#4F46E5] text-[#4F46E5]"
+                                        ? "border-[var(--brand-primary)] text-[var(--brand-primary)]"
                                         : "border-transparent text-gray-500 hover:text-gray-700"
                                         }`}
                                 >
@@ -372,22 +396,52 @@ export default function PatientProfileSheet({
 
                         {/* Scrollable Tab Content */}
                         <div className="flex-1 overflow-y-auto p-5">
-                            {activeTab === "history" && <HistoryTab />}
-                            {activeTab === "profile" && <ProfileTab patientName={patient.name} />}
-                            {activeTab === "medications" && <MedicationsTab />}
+                            {activeTab === "history" && <HistoryTab records={records} loading={loadingRecords} />}
+                            {activeTab === "profile" && <ProfileTab patient={patient} />}
+                            {activeTab === "medications" && <MedicationsTab records={records} loading={loadingRecords} />}
                         </div>
 
                         {/* Footer */}
                         <div className="p-5 border-t border-gray-200 bg-white flex flex-col gap-3 shrink-0">
                             {/* Start Video Call */}
-                            <Link
-                                href={`/consultation/${patient.id}`}
-                                onClick={onClose}
-                                className="w-full bg-[#4F46E5] hover:bg-[#4338CA] text-white py-3 rounded-xl font-medium shadow-sm transition-all flex items-center justify-center gap-2 text-sm"
+                            <button
+                                onClick={async () => {
+                                    if (startingCall) return;
+                                    setStartingCall(true);
+                                    try {
+                                        const [profile, me] = await Promise.all([
+                                            getDoctorProfile(),
+                                            getMe(),
+                                        ]);
+                                        if (!profile || !me?.hospital_id) throw new Error('Missing doctor/hospital info');
+                                        const appt = await createAppointment({
+                                            doctor_id: profile.id,
+                                            patient_id: patient.id,
+                                            hospital_id: me.hospital_id,
+                                            scheduled_time: new Date().toISOString(),
+                                            duration_minutes: 30,
+                                            appointment_type: 'VIDEO',
+                                        });
+                                        onClose();
+                                        router.push(`/consultation/${appt.id}`);
+                                    } catch (e) {
+                                        console.error('Failed to create appointment:', e);
+                                        setStartingCall(false);
+                                    }
+                                }}
+                                disabled={startingCall}
+                                className={`w-full py-3 rounded-xl font-medium shadow-sm transition-all flex items-center justify-center gap-2 text-sm cursor-pointer ${
+                                    startingCall
+                                        ? 'bg-[var(--brand-primary)]/60 text-white/80 cursor-not-allowed'
+                                        : 'bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] text-white'
+                                }`}
                             >
-                                <Video size={16} />
-                                Start Video Consultation
-                            </Link>
+                                {startingCall ? (
+                                    <><Loader2 size={16} className="animate-spin" /> Starting…</>
+                                ) : (
+                                    <><Video size={16} /> Start Video Consultation</>
+                                )}
+                            </button>
 
                             {/* New Prescription */}
                             {onNewPrescription && (
