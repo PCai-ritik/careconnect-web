@@ -13,9 +13,11 @@ import {
     Loader2,
     Share2,
     CalendarOff,
+    FileText,
 } from "lucide-react";
 import PatientProfileSheet from "@/components/dashboard/PatientProfileSheet";
 import NewPrescriptionSheet from "@/components/dashboard/NewPrescriptionSheet";
+import PostCallSummarySheet from "@/components/dashboard/PostCallSummarySheet";
 import type { PrescriptionPatient } from "@/components/dashboard/NewPrescriptionSheet";
 import { getAppointments, getPatients, getDashboardStats, startVideoSession, getJoinToken, type AppointmentResponse, type PatientResponse } from "@/lib/dashboard";
 import { getMe, type MeResponse } from "@/lib/auth";
@@ -93,6 +95,7 @@ export default function DashboardHomePage() {
     const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(false);
     const [prescriptionPatient, setPrescriptionPatient] = useState<PrescriptionPatient | null>(null);
     const [profileRefreshKey, setProfileRefreshKey] = useState(0);
+    const [summaryModalId, setSummaryModalId] = useState<string | null>(null);
 
     // Real data state
     const [doctorName, setDoctorName] = useState("Doctor");
@@ -146,7 +149,21 @@ export default function DashboardHomePage() {
         name: patientMap.get(a.patient_id) ?? 'Unknown Patient',
         condition: a.reason || a.appointment_type.replace('_', ' '),
         time: formatAppointmentTime(a.scheduled_time, a.appointment_type),
+        rawStatus: a.status,
+        duration: a.duration_minutes || 30,
+        scheduledTime: a.scheduled_time,
     }));
+
+    const recentSummaries = appointments
+        .filter(a => a.status === 'COMPLETED')
+        .sort((a, b) => new Date(b.scheduled_time).getTime() - new Date(a.scheduled_time).getTime())
+        .slice(0, 3)
+        .map(a => ({
+            id: a.id,
+            name: patientMap.get(a.patient_id) ?? 'Unknown Patient',
+            date: new Date(a.scheduled_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            time: formatAppointmentTime(a.scheduled_time, a.appointment_type),
+        }));
 
     const recentPatients: DisplayPatient[] = patients.slice(0, 5).map(p => ({
         id: p.id,
@@ -312,16 +329,45 @@ export default function DashboardHomePage() {
                                             </div>
                                         </Link>
 
-                                        {/* Right — Join Call + Share */}
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                                            <ShareButton appointmentId={row.id} patientName={row.name} variant="subtle" />
-                                            <Link
-                                                href={`/consultation/${row.id}`}
-                                                className="border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-200 hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer flex items-center gap-1.5"
-                                            >
-                                                <Video size={12} />
-                                                Join Call
-                                            </Link>
+                                        {/* Right — Join Call + Share or Processing */}
+                                        <div className="flex items-center gap-2">
+                                            {(() => {
+                                                const isProcessing = row.rawStatus === 'IN_PROGRESS' && (new Date(row.scheduledTime).getTime() + row.duration * 60000) < Date.now();
+                                                
+                                                if (isProcessing) {
+                                                    return (
+                                                        <div className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
+                                                            <Loader2 size={14} className="animate-spin" />
+                                                            Processing Summary...
+                                                        </div>
+                                                    );
+                                                }
+
+                                                if (row.rawStatus === 'COMPLETED' || row.rawStatus === 'CANCELLED' || row.rawStatus === 'NO_SHOW') {
+                                                    return (
+                                                        <button 
+                                                            onClick={() => setSummaryModalId(row.id)}
+                                                            className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                                                        >
+                                                            <FileText size={14} />
+                                                            View Summary
+                                                        </button>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
+                                                        <ShareButton appointmentId={row.id} patientName={row.name} variant="subtle" />
+                                                        <Link
+                                                            href={`/consultation/${row.id}`}
+                                                            className="border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-200 hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer flex items-center gap-1.5"
+                                                        >
+                                                            <Video size={12} />
+                                                            Join Call
+                                                        </Link>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 ))
@@ -381,6 +427,49 @@ export default function DashboardHomePage() {
                             )}
                         </div>
                     </motion.div>
+
+                    {/* ── Recent Summaries (Full Width) ── */}
+                    <motion.div variants={itemVariants} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50 flex justify-between items-center">
+                            <h2 className="text-base font-semibold text-gray-900">Recent Summaries</h2>
+                            <Link href="/dashboard/schedule" className="text-sm font-medium text-[var(--brand-primary)] hover:text-[var(--brand-primary-hover)] cursor-pointer">
+                                View History
+                            </Link>
+                        </div>
+                        {recentSummaries.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+                                {recentSummaries.map((summary, index) => (
+                                    <button
+                                        key={summary.id}
+                                        onClick={() => setSummaryModalId(summary.id)}
+                                        className="text-left border border-gray-200 rounded-xl p-4 hover:border-[var(--brand-primary)] hover:shadow-md transition-all cursor-pointer group"
+                                    >
+                                        <div className="flex items-start justify-between mb-3">
+                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${avatarColors[index % avatarColors.length]}`}>
+                                                <User size={18} />
+                                            </div>
+                                            <div className="bg-green-50 text-green-700 px-2 py-1 rounded-md flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider">
+                                                <FileText size={12} />
+                                                Ready
+                                            </div>
+                                        </div>
+                                        <h3 className="font-semibold text-gray-900 group-hover:text-[var(--brand-primary)] transition-colors">{summary.name}</h3>
+                                        <p className="text-xs text-gray-500 mt-1">{summary.date} • {summary.time.split(' —')[0]}</p>
+                                    </button>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="px-6 py-12 flex flex-col items-center justify-center text-center">
+                                <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                                    <FileText size={20} className="text-gray-400" />
+                                </div>
+                                <h3 className="text-sm font-semibold text-gray-700">No summaries yet</h3>
+                                <p className="text-xs text-gray-500 mt-1 max-w-sm">
+                                    AI-generated summaries will appear here after you complete a video consultation.
+                                </p>
+                            </div>
+                        )}
+                    </motion.div>
                 </motion.div>
             </div>
 
@@ -410,6 +499,11 @@ export default function DashboardHomePage() {
                 onClose={() => { setIsPrescriptionOpen(false); setPrescriptionPatient(null); }}
                 patient={prescriptionPatient}
                 onPrescriptionCreated={() => setProfileRefreshKey(k => k + 1)}
+            />
+            <PostCallSummarySheet
+                isOpen={!!summaryModalId}
+                appointmentId={summaryModalId}
+                onClose={() => setSummaryModalId(null)}
             />
         </>
     );

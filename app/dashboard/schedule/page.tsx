@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Search, Video, User, FileText, Loader2, AlertTriangle, Calendar } from "lucide-react";
 import Link from "next/link";
 import { getAppointments, getPatients, updateAppointmentStatus, type AppointmentResponse, type PatientResponse } from "@/lib/dashboard";
+import PostCallSummarySheet from "@/components/dashboard/PostCallSummarySheet";
 
 /* ── Avatar Color Palette ────────────────────────────────────────────── */
 
@@ -131,6 +132,7 @@ export default function SchedulePage() {
 
     // Emergency reschedule modal state
     const [rescheduleModal, setRescheduleModal] = useState<{ id: string; name: string } | null>(null);
+    const [summaryModalId, setSummaryModalId] = useState<string | null>(null);
 
     useEffect(() => {
         async function load() {
@@ -153,7 +155,7 @@ export default function SchedulePage() {
     // Map API data → display format (no more pending filtering — all are auto-confirmed)
     const patientMap = new Map(patients.map(p => [p.id, p.full_name]));
     const allAppointments = useMock
-        ? MOCK_APPOINTMENTS
+        ? MOCK_APPOINTMENTS.map(a => ({ ...a, rawStatus: "CONFIRMED", duration: 30, scheduledTime: new Date().toISOString() }))
         : rawAppointments.map(a => ({
             id: a.id,
             name: patientMap.get(a.patient_id) ?? 'Unknown Patient',
@@ -161,6 +163,9 @@ export default function SchedulePage() {
             date: formatDate(a.scheduled_time),
             time: formatTime(a.scheduled_time),
             status: mapStatus(a.status),
+            rawStatus: a.status,
+            duration: a.duration_minutes || 30,
+            scheduledTime: a.scheduled_time,
         }));
 
     // Emergency reschedule handler → sets status to CANCELLED
@@ -296,29 +301,49 @@ export default function SchedulePage() {
 
                                 {/* Col 4 — Actions */}
                                 <div className="flex justify-end gap-2">
-                                    {appt.status === "upcoming" ? (
-                                        <>
-                                            <button
-                                                onClick={() => setRescheduleModal({ id: appt.id, name: appt.name })}
-                                                className="bg-white border border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-                                            >
-                                                <Calendar size={14} />
-                                                Reschedule
-                                            </button>
-                                            <Link
-                                                href={`/consultation/${appt.id}`}
+                                    {(() => {
+                                        const isProcessing = appt.rawStatus === 'IN_PROGRESS' && (new Date(appt.scheduledTime).getTime() + appt.duration * 60000) < Date.now();
+
+                                        if (isProcessing) {
+                                            return (
+                                                <div className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
+                                                    <Loader2 size={14} className="animate-spin" />
+                                                    Processing Summary...
+                                                </div>
+                                            );
+                                        }
+
+                                        if (appt.status === "upcoming") {
+                                            return (
+                                                <>
+                                                    <button
+                                                        onClick={() => setRescheduleModal({ id: appt.id, name: appt.name })}
+                                                        className="bg-white border border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                                    >
+                                                        <Calendar size={14} />
+                                                        Reschedule
+                                                    </button>
+                                                    <Link
+                                                        href={`/consultation/${appt.id}`}
+                                                        className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                                    >
+                                                        <Video size={14} />
+                                                        Join Call
+                                                    </Link>
+                                                </>
+                                            );
+                                        }
+
+                                        return (
+                                            <button 
+                                                onClick={() => setSummaryModalId(appt.id)}
                                                 className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
                                             >
-                                                <Video size={14} />
-                                                Join Call
-                                            </Link>
-                                        </>
-                                    ) : (
-                                        <button className="bg-white border border-gray-200 hover:border-gray-300 text-gray-500 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer">
-                                            <FileText size={14} />
-                                            Summary
-                                        </button>
-                                    )}
+                                                <FileText size={14} />
+                                                View Summary
+                                            </button>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         ))
@@ -333,6 +358,13 @@ export default function SchedulePage() {
                 onClose={() => setRescheduleModal(null)}
                 onConfirm={handleEmergencyReschedule}
                 loading={actionLoading === rescheduleModal?.id}
+            />
+
+            {/* ── Post-Call Summary Sheet ── */}
+            <PostCallSummarySheet
+                isOpen={!!summaryModalId}
+                appointmentId={summaryModalId}
+                onClose={() => setSummaryModalId(null)}
             />
         </div>
     );

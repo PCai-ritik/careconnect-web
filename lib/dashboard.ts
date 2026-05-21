@@ -296,3 +296,50 @@ export async function getAvailableSlots(doctorId: string, date: string): Promise
     });
 }
 
+// ─── Doctor Notes (in-call) ─────────────────────────────────────────────────
+
+export interface DoctorNoteResponse {
+    id: string;
+    appointment_id: string;
+    doctor_id: string;
+    content: string;
+    created_at: string;
+}
+
+export async function createDoctorNote(appointmentId: string, content: string): Promise<DoctorNoteResponse> {
+    return apiRequest<DoctorNoteResponse>({
+        method: 'POST',
+        path: '/doctor-notes',
+        body: { appointment_id: appointmentId, content },
+    });
+}
+
+export async function getDoctorNotes(appointmentId: string): Promise<DoctorNoteResponse[]> {
+    return apiRequest<DoctorNoteResponse[]>({
+        method: 'GET',
+        path: `/doctor-notes/${appointmentId}`,
+    });
+}
+
+// ─── Post-Call Summary ──────────────────────────────────────────────────────
+
+export interface PostCallSummaryResponse {
+    id: string;
+    appointment_id: string;
+    diagnosis: string | null;
+    symptoms: string[] | null;
+    treatment_plan: string | null;
+    prescriptions: string[] | null;
+    follow_up: string | null;
+    doctor_notes: string | null;
+    summary: string | null;         // Full bilingual JSON from AI pipeline
+    created_at: string;
+}
+
+export async function getPostCallSummary(appointmentId: string): Promise<PostCallSummaryResponse> {
+    return apiRequest<PostCallSummaryResponse>({
+        method: 'GET',
+        path: `/appointments/${appointmentId}/summary`,
+    });
+}
+

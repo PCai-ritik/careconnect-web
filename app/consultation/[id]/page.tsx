@@ -8,6 +8,7 @@ import {
     PanelRightClose, PanelRightOpen,
     FileText, Copy, Users,
     Clipboard, FilePlus, X, Clock,
+    Check, Loader2,
 } from "lucide-react";
 import {
     LiveKitRoom,
@@ -18,8 +19,8 @@ import {
     useTracks,
 } from "@livekit/components-react";
 import { Track, RoomEvent } from "livekit-client";
-import { startVideoSession, getJoinToken, getAppointment, getPatients, type PatientResponse, type AppointmentResponse } from "@/lib/dashboard";
-import { apiRequest } from "@/lib/api";
+import { startVideoSession, getJoinToken, getAppointment, getPatients, createDoctorNote, getDoctorNotes, type PatientResponse, type AppointmentResponse, type DoctorNoteResponse } from "@/lib/dashboard";
+
 import PatientProfileSheet from "@/components/dashboard/PatientProfileSheet";
 import NewPrescriptionSheet from "@/components/dashboard/NewPrescriptionSheet";
 import type { PrescriptionPatient } from "@/components/dashboard/NewPrescriptionSheet";
@@ -53,6 +54,9 @@ export default function ConsultationRoom({ params }: { params: Promise<{ id: str
     const [isChartOpen, setIsChartOpen] = useState(false);
     const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(false);
     const [notes, setNotes] = useState("");
+    const [savedNotes, setSavedNotes] = useState<DoctorNoteResponse[]>([]);
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveToast, setSaveToast] = useState(false);
     const [copied, setCopied] = useState(false);
     const [durationNotifShown, setDurationNotifShown] = useState(false);
     const [showDurationNotif, setShowDurationNotif] = useState(false);
@@ -150,6 +154,31 @@ export default function ConsultationRoom({ params }: { params: Promise<{ id: str
     }, [elapsedSeconds, durationMinutes, durationNotifShown]);
 
 
+    // ── Load existing doctor notes when panel opens ──
+    useEffect(() => {
+        if (isPanelOpen && id) {
+            getDoctorNotes(id)
+                .then(setSavedNotes)
+                .catch((e) => console.error('Failed to load notes:', e));
+        }
+    }, [isPanelOpen, id]);
+
+    // ── Save a new doctor note ──
+    const handleSaveNote = useCallback(async () => {
+        if (!notes.trim() || isSaving) return;
+        setIsSaving(true);
+        try {
+            const saved = await createDoctorNote(id, notes.trim());
+            setSavedNotes((prev) => [...prev, saved]);
+            setNotes("");
+            setSaveToast(true);
+            setTimeout(() => setSaveToast(false), 2500);
+        } catch (e) {
+            console.error('Failed to save note:', e);
+        } finally {
+            setIsSaving(false);
+        }
+    }, [id, notes, isSaving]);
 
     // ── Wrap in LiveKitRoom when token is ready ──
     const videoContent = (
@@ -301,31 +330,69 @@ export default function ConsultationRoom({ params }: { params: Promise<{ id: str
                                     </div>
                                 </div>
 
-                                {/* Quick tags */}
-                                <div className="px-4 py-2.5 border-b border-gray-100 flex gap-2 flex-wrap shrink-0">
-                                    {["Headache", "BP Elevated", "Follow-up"].map((tag) => (
-                                        <span key={tag} className="text-xs bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full font-medium">{tag}</span>
-                                    ))}
-                                    <button className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1 rounded-full border border-dashed border-gray-300 cursor-pointer">
-                                        + tag
-                                    </button>
+                                {/* Saved Notes List */}
+                                <div className="flex-1 overflow-y-auto">
+                                    {savedNotes.length > 0 ? (
+                                        <div className="divide-y divide-gray-100">
+                                            {savedNotes.map((note) => (
+                                                <div key={note.id} className="px-4 py-3">
+                                                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{note.content}</p>
+                                                    <p className="text-[10px] text-gray-400 mt-1.5">
+                                                        {new Date(note.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="px-4 py-8 text-center">
+                                            <FileText size={20} className="text-gray-300 mx-auto mb-2" />
+                                            <p className="text-xs text-gray-400">No notes yet. Add your first note below.</p>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {/* Textarea */}
-                                <textarea
-                                    className="flex-1 w-full resize-none focus:outline-none text-gray-700 p-4 text-sm placeholder-gray-400"
-                                    placeholder="Type consultation notes here..."
-                                    value={notes}
-                                    onChange={(e) => setNotes(e.target.value)}
-                                />
-
-                                {/* Save */}
-                                <div className="p-3 border-t border-gray-100 shrink-0">
-                                    <button className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2.5 rounded-xl font-medium text-sm transition-colors cursor-pointer flex items-center justify-center gap-2">
-                                        <FileText size={14} />
-                                        Save Note
-                                    </button>
+                                {/* New Note Input */}
+                                <div className="border-t border-gray-100 shrink-0">
+                                    <textarea
+                                        className="w-full resize-none focus:outline-none text-gray-700 p-4 text-sm placeholder-gray-400"
+                                        placeholder="Type a consultation note..."
+                                        rows={3}
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                                e.preventDefault();
+                                                handleSaveNote();
+                                            }
+                                        }}
+                                    />
+                                    <div className="px-3 pb-3 flex items-center justify-between">
+                                        <span className="text-[10px] text-gray-400">⌘+Enter to save</span>
+                                        <button
+                                            onClick={handleSaveNote}
+                                            disabled={!notes.trim() || isSaving}
+                                            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors cursor-pointer flex items-center gap-2"
+                                        >
+                                            {isSaving ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+                                            Save Note
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {/* Save Toast */}
+                                <AnimatePresence>
+                                    {saveToast && (
+                                        <motion.div
+                                            initial={{ y: 10, opacity: 0 }}
+                                            animate={{ y: 0, opacity: 1 }}
+                                            exit={{ y: 10, opacity: 0 }}
+                                            className="absolute bottom-16 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-xs font-medium px-4 py-2 rounded-lg shadow-lg flex items-center gap-1.5 z-50"
+                                        >
+                                            <Check size={12} />
+                                            Note saved
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         </motion.div>
                     )}
@@ -561,21 +628,8 @@ function EndCallButton({ router, appointmentId, patientJoinedRef }: {
             await localParticipant.setCameraEnabled(false);
         } catch { /* ignore */ }
 
-        // Mark appointment as COMPLETED only if the patient actually joined
-        if (patientJoinedRef.current) {
-            try {
-                await apiRequest({
-                    method: 'PATCH',
-                    path: `/appointments/${appointmentId}/status`,
-                    body: { status: 'COMPLETED' },
-                });
-            } catch (e) {
-                console.error('Failed to complete appointment:', e);
-            }
-        }
-
         router.push("/dashboard");
-    }, [localParticipant, router, appointmentId, patientJoinedRef]);
+    }, [localParticipant, router]);
 
     return (
         <button
