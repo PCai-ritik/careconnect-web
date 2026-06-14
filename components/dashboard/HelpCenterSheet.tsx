@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, HelpCircle, ChevronDown, Search, Video, FileText, Users, CreditCard, Shield, Headphones } from "lucide-react";
+import { useBranding } from "@/hooks/useBranding";
 
 /* ── FAQ Data ──────────────────────────────────────────────────────── */
 
@@ -17,7 +18,7 @@ interface FAQCategory {
     items: FAQItem[];
 }
 
-const faqCategories: FAQCategory[] = [
+const getFaqCategories = (brandName: string): FAQCategory[] => [
     {
         title: "Appointments & Scheduling",
         icon: Video,
@@ -46,7 +47,7 @@ const faqCategories: FAQCategory[] = [
             },
             {
                 question: "What technology is used for video calls?",
-                answer: "CareConnect uses LiveKit — an enterprise-grade, open-source WebRTC platform. All calls are encrypted end-to-end and routed through secure servers.",
+                answer: `${brandName} uses LiveKit — an enterprise-grade, open-source WebRTC platform. All calls are encrypted end-to-end and routed through secure servers.`,
             },
             {
                 question: "Can the patient join without downloading an app?",
@@ -72,7 +73,7 @@ const faqCategories: FAQCategory[] = [
             },
             {
                 question: "Are prescriptions shareable with patients?",
-                answer: "Prescriptions are stored securely in the patient's digital record and accessible to caregivers through the CareConnect mobile app. PDF export functionality is planned for a future release.",
+                answer: `Prescriptions are stored securely in the patient's digital record and accessible to caregivers through the ${brandName} mobile app. PDF export functionality is planned for a future release.`,
             },
         ],
     },
@@ -90,7 +91,7 @@ const faqCategories: FAQCategory[] = [
             },
             {
                 question: "What patient information is stored?",
-                answer: "CareConnect stores essential clinical data: demographics, contact info, medical history, allergies, existing conditions, emergency contacts, vitals, consultation records, and prescriptions. All data is encrypted at rest and in transit.",
+                answer: `${brandName} stores essential clinical data: demographics, contact info, medical history, allergies, existing conditions, emergency contacts, vitals, consultation records, and prescriptions. All data is encrypted at rest and in transit.`,
             },
         ],
     },
@@ -100,11 +101,11 @@ const faqCategories: FAQCategory[] = [
         items: [
             {
                 question: "How are consultation fees tracked?",
-                answer: "Your consultation fee is set during onboarding and can be updated from Settings. Each completed appointment generates a transaction record visible on your Earnings page.",
+                answer: `Your consultation fee is set during onboarding and can be updated from Settings. Each completed appointment generates a transaction record visible on your Earnings page.`,
             },
             {
                 question: "When do I receive payouts?",
-                answer: "Payouts are processed based on your arrangement with CareConnect. You can view your earnings, pending amounts, and payout history from the Earnings page in the sidebar.",
+                answer: `Payouts are processed based on your arrangement with ${brandName}. You can view your earnings, pending amounts, and payout history from the Earnings page in the sidebar.`,
             },
         ],
     },
@@ -114,7 +115,7 @@ const faqCategories: FAQCategory[] = [
         items: [
             {
                 question: "Is patient data secure?",
-                answer: "Yes. CareConnect implements end-to-end encryption for all patient data, both at rest and in transit. Our platform follows HIPAA compliance guidelines and uses row-level security policies to ensure data isolation between practices.",
+                answer: `Yes. ${brandName} implements end-to-end encryption for all patient data, both at rest and in transit. Our platform follows HIPAA compliance guidelines and uses row-level security policies to ensure data isolation between practices.`,
             },
             {
                 question: "Who can access my patients' data?",
@@ -157,6 +158,8 @@ export default function HelpCenterSheet({
 }) {
     const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
     const [searchQuery, setSearchQuery] = useState("");
+    const branding = useBranding();
+    const faqCategories = getFaqCategories(branding.name);
 
     const toggleItem = (key: string) => {
         setExpandedItems(prev => {
@@ -300,7 +303,7 @@ export default function HelpCenterSheet({
                         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50 shrink-0">
                             <p className="text-xs text-gray-500 text-center">
                                 Can&apos;t find what you&apos;re looking for?{" "}
-                                <a href="mailto:support@careconnect.health" className="text-[var(--brand-primary)] font-medium hover:underline">
+                                <a href="mailto:support@example.com" className="text-[var(--brand-primary)] font-medium hover:underline">
                                     Contact Support
                                 </a>
                             </p>

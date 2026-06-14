@@ -27,6 +27,7 @@ import {
     type AvailableSlot,
 } from "@/lib/dashboard";
 import { getMe } from "@/lib/auth";
+import { useBranding } from "@/hooks/useBranding";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -318,6 +319,7 @@ export default function NewPrescriptionSheet({
     const [slotsLoading, setSlotsLoading] = useState(false);
     const [followUpBooked, setFollowUpBooked] = useState(false);
     const rxRef = useRef<HTMLDivElement>(null);
+    const branding = useBranding();
 
     const isPatientLocked = !!patient;
 
@@ -604,7 +606,7 @@ export default function NewPrescriptionSheet({
         // Doctor header
         centered(`Dr. ${doctorName}`, 16, "bold");
         if (doctorLabel) centered(doctorLabel, 10, "normal", "#6b7280");
-        centered("CareConnect Health Platform", 9, "normal", "#9ca3af");
+        centered(branding.name, 9, "normal", "#9ca3af");
         y += 2;
         divider();
 
@@ -940,7 +942,7 @@ export default function NewPrescriptionSheet({
                                     <div className="text-center border-b border-gray-200 pb-5 mb-5">
                                         <h3 className="text-lg font-bold text-gray-900">Dr. {doctorName}</h3>
                                         {doctorLabel && <p className="text-sm text-gray-500">{doctorLabel}</p>}
-                                        <p className="text-xs text-gray-400 mt-0.5">CareConnect Health Platform</p>
+                                        <p className="text-xs text-gray-400 mt-0.5">{branding.name}</p>
                                     </div>
 
                                     {/* Patient Row */}

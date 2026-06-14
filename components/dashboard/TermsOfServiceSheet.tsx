@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, FileText, Shield, Scale, Database, Globe, AlertTriangle } from "lucide-react";
+import { useBranding } from "@/hooks/useBranding";
 
 /* ── Component ──────────────────────────────────────────────────────── */
 
@@ -12,6 +13,7 @@ export default function TermsOfServiceSheet({
     isOpen: boolean;
     onClose: () => void;
 }) {
+    const branding = useBranding();
     return (
         <AnimatePresence>
             {isOpen && (
@@ -58,8 +60,8 @@ export default function TermsOfServiceSheet({
                             {/* Introduction */}
                             <section>
                                 <p className="text-sm text-gray-600 leading-relaxed">
-                                    Welcome to CareConnect. By accessing or using our platform, you agree to be bound by these Terms of Service.
-                                    CareConnect is a telemedicine platform designed to facilitate secure video consultations, patient management,
+                                    Welcome to {branding.name}. By accessing or using our platform, you agree to be bound by these Terms of Service.
+                                    {branding.name} is a telemedicine platform designed to facilitate secure video consultations, patient management,
                                     and clinical workflows for licensed healthcare providers.
                                 </p>
                             </section>
@@ -72,7 +74,7 @@ export default function TermsOfServiceSheet({
                                 </div>
                                 <div className="text-sm text-gray-600 leading-relaxed space-y-3">
                                     <p>
-                                        By creating an account and using CareConnect (&quot;the Service&quot;), you acknowledge that you have read,
+                                        By creating an account and using {branding.name} (&quot;the Service&quot;), you acknowledge that you have read,
                                         understood, and agree to be bound by these Terms. If you do not agree, you must not use the Service.
                                     </p>
                                     <p>
@@ -90,7 +92,7 @@ export default function TermsOfServiceSheet({
                                 </div>
                                 <div className="text-sm text-gray-600 leading-relaxed space-y-3">
                                     <p>
-                                        CareConnect is committed to protecting patient data. All clinical information is encrypted at rest
+                                        {branding.name} is committed to protecting patient data. All clinical information is encrypted at rest
                                         (AES-256) and in transit (TLS 1.3). Our infrastructure implements row-level security to ensure
                                         strict data isolation between healthcare providers.
                                     </p>
@@ -130,7 +132,7 @@ export default function TermsOfServiceSheet({
                                         You may request data export or deletion through the Help Center, subject to legal retention requirements.
                                     </p>
                                     <p>
-                                        CareConnect does not sell, share, or monetize patient data. Access to patient records is restricted
+                                        {branding.name} does not sell, share, or monetize patient data. Access to patient records is restricted
                                         to the treating physician and authorized caregivers linked through the platform.
                                     </p>
                                 </div>
@@ -144,12 +146,12 @@ export default function TermsOfServiceSheet({
                                 </div>
                                 <div className="text-sm text-gray-600 leading-relaxed space-y-3">
                                     <p>
-                                        You are responsible for ensuring that your use of telemedicine services through CareConnect
-                                        complies with the laws and regulations of your jurisdiction. CareConnect provides the technology
+                                        You are responsible for ensuring that your use of telemedicine services through {branding.name}
+                                        complies with the laws and regulations of your jurisdiction. {branding.name} provides the technology
                                         platform; the clinical responsibility remains with you as the licensed provider.
                                     </p>
                                     <p>
-                                        Video consultations conducted through CareConnect use enterprise-grade WebRTC technology (LiveKit)
+                                        Video consultations conducted through {branding.name} use enterprise-grade WebRTC technology (LiveKit)
                                         with end-to-end encryption. You are responsible for ensuring a private environment during consultations.
                                     </p>
                                 </div>
@@ -196,12 +198,12 @@ export default function TermsOfServiceSheet({
                                 </div>
                                 <div className="text-sm text-gray-600 leading-relaxed space-y-3">
                                     <p>
-                                        CareConnect provides a technology platform and is not a healthcare provider. We are not
+                                        {branding.name} provides a technology platform and is not a healthcare provider. We are not
                                         responsible for clinical decisions, diagnoses, or treatment plans made using our platform.
                                         The treating physician bears full clinical responsibility.
                                     </p>
                                     <p>
-                                        To the maximum extent permitted by law, CareConnect shall not be liable for any indirect,
+                                        To the maximum extent permitted by law, {branding.name} shall not be liable for any indirect,
                                         incidental, or consequential damages arising from your use of the Service, including but not
                                         limited to service interruptions, data transmission delays, or third-party integrations.
                                     </p>
@@ -216,7 +218,7 @@ export default function TermsOfServiceSheet({
                                 </div>
                                 <div className="text-sm text-gray-600 leading-relaxed">
                                     <p>
-                                        CareConnect reserves the right to modify these Terms at any time. We will provide notice of
+                                        {branding.name} reserves the right to modify these Terms at any time. We will provide notice of
                                         material changes through the platform. Your continued use of the Service after such modifications
                                         constitutes acceptance of the updated Terms.
                                     </p>
@@ -229,7 +231,7 @@ export default function TermsOfServiceSheet({
                         <div className="px-6 py-4 border-t border-gray-200 bg-gray-50/50 shrink-0">
                             <p className="text-xs text-gray-500 text-center">
                                 Questions about these terms?{" "}
-                                <a href="mailto:legal@careconnect.health" className="text-[var(--brand-primary)] font-medium hover:underline">
+                                <a href="mailto:legal@example.com" className="text-[var(--brand-primary)] font-medium hover:underline">
                                     Contact Legal
                                 </a>
                             </p>

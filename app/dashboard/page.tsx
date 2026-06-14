@@ -21,6 +21,7 @@ import PostCallSummarySheet from "@/components/dashboard/PostCallSummarySheet";
 import type { PrescriptionPatient } from "@/components/dashboard/NewPrescriptionSheet";
 import { getAppointments, getPatients, getDashboardStats, startVideoSession, getJoinToken, type AppointmentResponse, type PatientResponse } from "@/lib/dashboard";
 import { getMe, type MeResponse } from "@/lib/auth";
+import { useBranding } from "@/hooks/useBranding";
 
 /* ── Animation Variants ──────────────────────────────────────────────── */
 
@@ -89,6 +90,7 @@ type DisplayPatient = { id: string; name: string; condition: string; date: strin
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function DashboardHomePage() {
+    const branding = useBranding();
     const [selectedPatient, setSelectedPatient] = useState<PatientResponse | null>(null);
     const [isSheetOpen, setIsSheetOpen] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -130,7 +132,7 @@ export default function DashboardHomePage() {
             try {
                 const me = await getMe();
                 if (me?.full_name) {
-                    setDoctorName(me.full_name.split(' ').pop() || me.full_name);
+                    setDoctorName(me.full_name.split(' ')[0] || me.full_name);
                 }
             } catch {
                 // Keep default "Doctor"
@@ -205,7 +207,7 @@ export default function DashboardHomePage() {
 
     return (
         <>
-            <div className="max-w-7xl mx-auto font-spline pb-12">
+            <div className="max-w-7xl mx-auto  pb-12">
                 <motion.div
                     variants={containerVariants}
                     initial="hidden"
@@ -273,7 +275,7 @@ export default function DashboardHomePage() {
 
                                 {/* Right Side — Start Call + Share */}
                                 <div className="flex items-center gap-2">
-                                    <ShareButton appointmentId={nextAppointmentDisplay.id} patientName={nextAppointmentDisplay.name} />
+                                    <ShareButton appointmentId={nextAppointmentDisplay.id} patientName={nextAppointmentDisplay.name} brandName={branding.name} />
                                     <Link
                                         href={`/consultation/${nextAppointmentDisplay.id}`}
                                         className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-[0.98] cursor-pointer"
@@ -357,7 +359,7 @@ export default function DashboardHomePage() {
 
                                                 return (
                                                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
-                                                        <ShareButton appointmentId={row.id} patientName={row.name} variant="subtle" />
+                                                        <ShareButton appointmentId={row.id} patientName={row.name} brandName={branding.name} variant="subtle" />
                                                         <Link
                                                             href={`/consultation/${row.id}`}
                                                             className="border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-200 hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer flex items-center gap-1.5"
@@ -511,9 +513,10 @@ export default function DashboardHomePage() {
 
 /* ── ShareButton — fetches patient token and opens WhatsApp ────────── */
 
-function ShareButton({ appointmentId, patientName, variant = "default" }: {
+function ShareButton({ appointmentId, patientName, brandName, variant = "default" }: {
     appointmentId: string;
     patientName: string;
+    brandName: string;
     variant?: "default" | "subtle";
 }) {
     const [loading, setLoading] = useState(false);
@@ -538,7 +541,7 @@ function ShareButton({ appointmentId, patientName, variant = "default" }: {
             }
 
             const joinUrl = `${window.location.origin}/join/${appointmentId}?token=${encodeURIComponent(patientToken)}`;
-            const msg = `Hi! Your CareConnect video consultation is ready.\n\nJoin here: ${joinUrl}`;
+            const msg = `Hi! Your ${brandName} video consultation is ready.\n\nJoin here: ${joinUrl}`;
             const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
             window.open(waUrl, "_blank");
         } catch (err) {

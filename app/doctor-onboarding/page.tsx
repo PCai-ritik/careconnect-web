@@ -318,7 +318,7 @@ export default function DoctorOnboardingPage() {
     /* ── Render ── */
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 font-spline">
+        <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-6 ">
 
             {/* ── Completion Modal ── */}
             <AnimatePresence>

@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, LogOut, X } from "lucide-react";
+import { logout } from "@/lib/auth";
 
 interface LogoutModalProps {
     isOpen: boolean;
@@ -13,6 +14,7 @@ export default function LogoutModal({ isOpen, onClose }: LogoutModalProps) {
     const router = useRouter();
 
     const handleConfirm = () => {
+        logout();
         onClose();
         router.push("/login");
     };

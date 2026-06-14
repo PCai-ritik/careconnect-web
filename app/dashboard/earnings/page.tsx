@@ -60,7 +60,7 @@ const transactions = [
 
 export default function EarningsPage() {
     return (
-        <div className="max-w-7xl mx-auto font-spline pb-12">
+        <div className="max-w-7xl mx-auto  pb-12">
             <motion.div
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}

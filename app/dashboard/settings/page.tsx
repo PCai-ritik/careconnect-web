@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
     User, Edit2, Lock, HelpCircle, FileText, LogOut, ChevronRight, Calendar,
+    Building2, AlertCircle, CheckCircle2, Loader2
 } from "lucide-react";
 import EditProfileSheet from "@/components/dashboard/EditProfileSheet";
 import LogoutModal from "@/components/dashboard/LogoutModal";
@@ -11,6 +12,16 @@ import HelpCenterSheet from "@/components/dashboard/HelpCenterSheet";
 import TermsOfServiceSheet from "@/components/dashboard/TermsOfServiceSheet";
 import ScheduleEditorSheet from "@/components/dashboard/ScheduleEditorSheet";
 import { getDoctorProfile, type DoctorProfile } from "@/lib/dashboard";
+import { apiRequest } from "@/lib/api";
+import { getMe, type MeResponse } from "@/lib/auth";
+import { useBranding } from "@/hooks/useBranding";
+
+const DEFAULT_HOSPITAL_ID = "00000000-0000-4000-8000-000000000001";
+
+interface HospitalItem {
+    id: string;
+    name: string;
+}
 
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
@@ -21,17 +32,59 @@ export default function SettingsPage() {
     const [isTosOpen, setIsTosOpen] = useState(false);
     const [isScheduleOpen, setIsScheduleOpen] = useState(false);
     const [profile, setProfile] = useState<DoctorProfile | null>(null);
+    const [me, setMe] = useState<MeResponse | null>(null);
+    const [hospitals, setHospitals] = useState<HospitalItem[]>([]);
+    const [selectedHospitalId, setSelectedHospitalId] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [affiliationError, setAffiliationError] = useState<string | null>(null);
+    const [affiliationSuccess, setAffiliationSuccess] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const branding = useBranding();
 
     const loadProfile = useCallback(() => {
         getDoctorProfile()
             .then(setProfile)
             .catch(() => { });
+        getMe()
+            .then((data) => {
+                setMe(data);
+                if (data.hospital_id) {
+                    setSelectedHospitalId(data.hospital_id);
+                }
+            })
+            .catch(() => { });
     }, []);
 
     useEffect(() => {
         loadProfile();
+        apiRequest<HospitalItem[]>({ method: "GET", path: "/hospitals" })
+            .then(setHospitals)
+            .catch(() => { });
     }, [loadProfile, refreshKey]);
+
+    const handleRequestAffiliation = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedHospitalId || selectedHospitalId === me?.hospital_id) return;
+
+        setIsSubmitting(true);
+        setAffiliationError(null);
+        setAffiliationSuccess(false);
+
+        try {
+            const updatedUser = await apiRequest<MeResponse>({
+                method: "POST",
+                path: "/api/users/request-affiliation",
+                body: { hospital_id: selectedHospitalId }
+            });
+            setMe(updatedUser);
+            setAffiliationSuccess(true);
+            setRefreshKey((k) => k + 1);
+        } catch (err: any) {
+            setAffiliationError(err.message || "Failed to submit affiliation request.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const displayName = profile?.full_name || "Doctor";
     const specialization = profile?.specialization || "—";
@@ -48,7 +101,7 @@ export default function SettingsPage() {
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35 }}
-                className="max-w-7xl mx-auto space-y-6 font-spline pb-12"
+                className="max-w-7xl mx-auto space-y-6  pb-12"
             >
                 {/* ── Page Header ── */}
                 <div>
@@ -166,6 +219,114 @@ export default function SettingsPage() {
                                     <p className="text-sm text-gray-400 text-center py-4">
                                         No availability set. Click &quot;Edit Schedule&quot; to configure.
                                     </p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Card 2c: Hospital Affiliation */}
+                        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50 text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-gray-500" />
+                                Hospital &amp; Clinic Affiliation
+                            </div>
+                            <div className="p-6">
+                                {me && (
+                                    <div className="space-y-4">
+                                        {/* Current Status Banner */}
+                                        {me.affiliation_status === "PENDING" && (
+                                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3 text-sm text-amber-800">
+                                                <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="font-semibold block mb-0.5">Affiliation Request Pending</span>
+                                                    Your request to affiliate with <strong className="font-medium text-amber-900">{hospitals.find(h => h.id === me.hospital_id)?.name || "the selected hospital"}</strong> is awaiting administrator approval.
+                                                    <p className="mt-1 text-xs text-amber-700">
+                                                        Until approved, your data access remains sandboxed under the default hospital context.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {me.affiliation_status === "APPROVED" && me.hospital_id !== DEFAULT_HOSPITAL_ID && (
+                                            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex gap-3 text-sm text-emerald-800">
+                                                <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="font-semibold block mb-0.5">Affiliation Approved</span>
+                                                    You are successfully affiliated with <strong className="font-medium text-emerald-900">{hospitals.find(h => h.id === me.hospital_id)?.name || "your hospital"}</strong>.
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {me.affiliation_status === "REJECTED" && (
+                                            <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex gap-3 text-sm text-red-800">
+                                                <AlertCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="font-semibold block mb-0.5">Affiliation Request Rejected</span>
+                                                    Your request to affiliate with <strong className="font-medium text-red-900">{hospitals.find(h => h.id === me.hospital_id)?.name || "the selected hospital"}</strong> was rejected.
+                                                    <p className="mt-1 text-xs text-red-700">
+                                                        You can select another hospital below to submit a new affiliation request.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {me.hospital_id === DEFAULT_HOSPITAL_ID && me.affiliation_status === "APPROVED" && (
+                                            <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl flex gap-3 text-sm text-blue-800">
+                                                <Building2 className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="font-semibold block mb-0.5">Default Hospital Session</span>
+                                                    You are currently using the default {branding.name} hospital workspace.
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Change / Request Form (Only if NOT pending) */}
+                                        {me.affiliation_status !== "PENDING" && (
+                                            <form onSubmit={handleRequestAffiliation} className="space-y-4 pt-4 border-t border-gray-100">
+                                                <div>
+                                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                                                        Select Hospital / Clinic for Affiliation
+                                                    </label>
+                                                    <select
+                                                        value={selectedHospitalId}
+                                                        onChange={(e) => setSelectedHospitalId(e.target.value)}
+                                                        className="w-full bg-white border border-gray-200 text-gray-900 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                                    >
+                                                        <option value="" disabled>-- Choose a Hospital --</option>
+                                                        {hospitals.map((h) => (
+                                                            <option key={h.id} value={h.id}>
+                                                                {h.name} {h.id === DEFAULT_HOSPITAL_ID ? "(Default)" : ""}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+
+                                                {affiliationError && (
+                                                    <p className="text-xs text-red-600 font-medium">{affiliationError}</p>
+                                                )}
+
+                                                {affiliationSuccess && (
+                                                    <p className="text-xs text-emerald-600 font-medium">Affiliation request submitted successfully!</p>
+                                                )}
+
+                                                {selectedHospitalId !== me.hospital_id && (
+                                                    <button
+                                                        type="submit"
+                                                        disabled={isSubmitting}
+                                                        className="bg-blue-600 hover:bg-blue-700 text-white disabled:bg-blue-400 px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer w-full"
+                                                    >
+                                                        {isSubmitting ? (
+                                                            <>
+                                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                                Submitting Request...
+                                                            </>
+                                                        ) : (
+                                                            "Request Affiliation"
+                                                        )}
+                                                    </button>
+                                                )}
+                                            </form>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>

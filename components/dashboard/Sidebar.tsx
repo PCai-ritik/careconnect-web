@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import LogoutModal from "@/components/dashboard/LogoutModal";
 import { getDoctorProfile, type DoctorProfile } from "@/lib/dashboard";
+import { useBranding } from "@/hooks/useBranding";
 
 const navLinks = [
     { label: "Home", icon: Home, href: "/dashboard" },
@@ -21,6 +22,7 @@ export default function Sidebar() {
     const pathname = usePathname();
     const [isLogoutOpen, setIsLogoutOpen] = useState(false);
     const [profile, setProfile] = useState<DoctorProfile | null>(null);
+    const branding = useBranding();
 
     useEffect(() => {
         getDoctorProfile()
@@ -36,10 +38,23 @@ export default function Sidebar() {
             <aside className="w-64 h-screen bg-white border-r border-gray-200 flex flex-col fixed left-0 top-0 z-20">
                 {/* ── Brand Header ── */}
                 <div className="flex items-center gap-2.5 px-6 pt-6 pb-4">
-                    <div className="h-8 w-8 rounded-lg bg-[var(--brand-primary)] flex items-center justify-center">
-                        <Activity className="h-5 w-5 text-white" />
+                    <div className="h-8 w-8 bg-transparent flex items-center justify-center shrink-0">
+                        <div 
+                            className="w-full h-full object-contain bg-center bg-contain bg-no-repeat"
+                            style={{ 
+                                backgroundImage: "var(--brand-logo)",
+                                display: "var(--show-custom-logo, none)"
+                            }}
+                        />
+                        <Activity 
+                            className="h-5 w-5 text-indigo-600"
+                            style={{ display: "var(--show-default-logo, block)" }}
+                        />
                     </div>
-                    <span className="text-lg font-semibold text-gray-900">CareConnect</span>
+                    <span 
+                        className="text-lg font-semibold text-gray-900 leading-tight break-words after:content-[var(--brand-name-content,'CareConnect')]" 
+                        title={branding.name}
+                    ></span>
                 </div>
 
                 {/* ── Navigation Links ── */}

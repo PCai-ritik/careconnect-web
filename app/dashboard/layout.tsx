@@ -53,7 +53,7 @@ export default function DashboardLayout({
             </div>
 
             {/* ── Dashboard (hidden on mobile, visible md+) ── */}
-            <div className="hidden md:flex min-h-screen bg-[#F8FAFC] font-spline">
+            <div className="hidden md:flex min-h-screen bg-[#F8FAFC] ">
                 <Sidebar />
 
                 <div className="flex-1 ml-64 flex flex-col">

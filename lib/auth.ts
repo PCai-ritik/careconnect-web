@@ -28,6 +28,7 @@ export interface MeResponse {
     role: string;
     is_active: boolean;
     created_at: string;
+    affiliation_status: string;
 }
 
 // ─── Auth Functions ─────────────────────────────────────────────────────────

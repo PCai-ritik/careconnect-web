@@ -6,7 +6,9 @@ import { motion, AnimatePresence } from "framer-motion";
 import Spline from "@splinetool/react-spline";
 import { Activity, Eye, EyeOff, Loader2 } from "lucide-react";
 import { login, registerDoctor } from "@/lib/auth";
-import { applyDefaultBranding } from "@/lib/theme";
+import { applyDefaultBranding, applyBranding } from "@/lib/theme";
+import { useBranding } from "@/hooks/useBranding";
+import { apiRequest } from "@/lib/api";
 
 /* ─────────────────────── Animation Variants ─────────────────────── */
 
@@ -46,10 +48,37 @@ export default function LoginPage() {
     const [currentView, setCurrentView] = useState<View>("login");
     const [splineLoaded, setSplineLoaded] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const branding = useBranding();
 
     useEffect(() => {
         setMounted(true);
-        applyDefaultBranding();
+        const lookupBranding = async () => {
+            if (typeof window !== "undefined") {
+                try {
+                    const host = window.location.host;
+                    const res = await apiRequest<any>({
+                        method: 'GET',
+                        path: `/hospitals/lookup`,
+                        params: { hostname: host },
+                    });
+                    if (res) {
+                        const brandColor = res.white_label_config?.primary_color || res.brand_color || "#4F46E5";
+                        const brandLogo = res.white_label_config?.logo_url || res.logo_url || null;
+                        applyBranding({
+                            name: res.white_label_config?.platform_name || res.name,
+                            brand_color: brandColor,
+                            logo_url: brandLogo,
+                        });
+                    } else {
+                        applyDefaultBranding();
+                    }
+                } catch (err) {
+                    console.warn("Failed to lookup hospital branding:", err);
+                    applyDefaultBranding();
+                }
+            }
+        };
+        lookupBranding();
     }, []);
 
     const router = useRouter();
@@ -78,8 +107,10 @@ export default function LoginPage() {
             const res = await login(email, password);
             if (res.role === "DOCTOR") {
                 router.push("/dashboard");
+            } else if (res.role === "SUPER_ADMIN" || res.role === "ADMIN") {
+                router.push("/admin/branding");
             } else {
-                setError("This portal is for doctors only. Please use the mobile app.");
+                setError("This portal is for doctors and administrators only.");
             }
         } catch (e: unknown) {
             setError(e instanceof Error ? e.message : "Login failed. Please try again.");
@@ -109,7 +140,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="flex w-screen h-screen overflow-hidden font-spline">
+        <div className="flex w-screen h-screen overflow-hidden ">
             {/* ────────── LEFT PANEL (50%) ────────── */}
             <div className="w-full lg:w-1/2 bg-white flex flex-col items-center justify-center px-8 relative">
                 <AnimatePresence mode="wait">
@@ -119,10 +150,14 @@ export default function LoginPage() {
                             <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="w-full flex flex-col items-center">
                                 {/* Logo */}
                                 <motion.div variants={staggerChild} className="flex flex-col items-center mb-10">
-                                    <div className="w-16 h-16 rounded-2xl bg-[var(--brand-primary)] flex items-center justify-center mb-3">
-                                        <Activity size={32} className="text-white" />
+                                    <div className="w-16 h-16 bg-transparent flex items-center justify-center mb-3 shrink-0">
+                                        {branding.logo_url ? (
+                                            <img src={branding.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <Activity size={32} className="text-indigo-600" />
+                                        )}
                                     </div>
-                                    <span className="text-2xl font-bold text-gray-900">CareConnect</span>
+                                    <span className="text-2xl font-bold text-gray-900 text-center px-4 w-full truncate whitespace-nowrap overflow-hidden text-ellipsis" title={branding.name}>{branding.name}</span>
                                     <span className="text-xs text-[var(--brand-primary)] font-medium mt-0.5">For Doctors</span>
                                 </motion.div>
 
@@ -187,11 +222,15 @@ export default function LoginPage() {
                             <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="w-full flex flex-col items-center">
                                 {/* Logo */}
                                 <motion.div variants={staggerChild} className="flex flex-col items-center mb-8">
-                                    <div className="w-14 h-14 rounded-2xl bg-[var(--brand-primary)] flex items-center justify-center mb-3">
-                                        <Activity size={28} className="text-white" />
+                                    <div className="w-16 h-16 bg-transparent flex items-center justify-center mb-3 shrink-0">
+                                        {branding.logo_url ? (
+                                            <img src={branding.logo_url} alt="Logo" className="w-full h-full object-contain" />
+                                        ) : (
+                                            <Activity size={32} className="text-indigo-600" />
+                                        )}
                                     </div>
-                                    <span className="text-xl font-bold text-gray-900">Create your account</span>
-                                    <span className="text-xs text-gray-400 mt-0.5">Join as a CareConnect Doctor</span>
+                                    <span className="text-2xl font-bold text-gray-900 text-center px-4 w-full truncate whitespace-nowrap overflow-hidden text-ellipsis" title={branding.name}>{branding.name}</span>
+                                    <span className="text-xs text-gray-400 mt-0.5 text-center">Join as a {branding.name} Doctor</span>
                                 </motion.div>
 
                                 {/* Full Name */}

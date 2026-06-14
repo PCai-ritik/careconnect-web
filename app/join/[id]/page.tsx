@@ -10,6 +10,7 @@ import {
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
+import { useBranding } from "@/hooks/useBranding";
 
 /* ── Timer ───────────────────────────────────────────────────────────── */
 
@@ -167,6 +168,7 @@ export default function PatientJoinPage({ params }: { params: Promise<{ id: stri
  * ══════════════════════════════════════════════════════════════════════ */
 
 function RemoteVideo() {
+    const branding = useBranding();
     const remoteTracks = useTracks(
         [{ source: Track.Source.Camera, withPlaceholder: true }],
         { onlySubscribed: true }
@@ -198,7 +200,9 @@ function RemoteVideo() {
                 </div>
                 <div className="absolute inset-0 rounded-full border-2 border-blue-500/20 animate-ping" />
             </div>
-            <p className="text-slate-300 font-medium mt-5 text-sm">Waiting for doctor to join...</p>
+            <p className="text-slate-300 font-medium mt-5 text-sm text-center max-w-sm px-4">
+                {branding.white_label_config?.waiting_room_msg || "Waiting for doctor to join..."}
+            </p>
         </div>
     );
 }

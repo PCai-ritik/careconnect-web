@@ -12,19 +12,30 @@
 
 import { useEffect } from "react";
 import { applyDefaultBranding, initBranding } from "@/lib/theme";
-import { getStoredUser } from "@/lib/api";
+import { getMe } from "@/lib/auth";
+
+export const DEFAULT_HOSPITAL_ID = "00000000-0000-4000-8000-000000000001";
 
 export default function ThemeInitializer() {
     useEffect(() => {
-        const user = getStoredUser();
+        const loadTheme = async () => {
+            try {
+                const user = await getMe();
+                if (
+                    user &&
+                    user.affiliation_status === "APPROVED" &&
+                    user.hospital_id !== DEFAULT_HOSPITAL_ID
+                ) {
+                    await initBranding(user.hospital_id);
+                } else {
+                    applyDefaultBranding();
+                }
+            } catch (err) {
+                applyDefaultBranding();
+            }
+        };
 
-        if (user?.hospital_id) {
-            // Logged-in user with hospital context — fetch real branding
-            initBranding(user.hospital_id);
-        } else {
-            // No hospital context — apply defaults
-            applyDefaultBranding();
-        }
+        loadTheme();
     }, []);
 
     // This component renders nothing — it's purely a side-effect runner

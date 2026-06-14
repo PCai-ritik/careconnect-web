@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getToken } from "@/lib/api";
+import { getToken, getStoredUser } from "@/lib/api";
 
 /**
  * Auth guard — checks for an access token on mount and on focus.
  * If no token is found, redirects to /login.
+ * If the user is an admin, redirects to /admin.
  * Renders nothing — just acts as a side-effect.
  */
 export default function AuthGuard() {
@@ -16,8 +17,11 @@ export default function AuthGuard() {
     useEffect(() => {
         const check = () => {
             const token = getToken();
+            const user = getStoredUser();
             if (!token) {
                 router.replace("/login");
+            } else if (user && (user.role === "ADMIN" || user.role === "SUPER_ADMIN")) {
+                router.replace("/admin");
             } else {
                 setChecked(true);
             }

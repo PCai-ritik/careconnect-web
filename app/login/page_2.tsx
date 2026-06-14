@@ -77,7 +77,7 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
 
     return (
-        <div className="relative w-screen h-screen overflow-hidden bg-black font-spline">
+        <div className="relative w-screen h-screen overflow-hidden bg-black ">
             {/* ── Full-screen Spline 3D background ── */}
             <div className="absolute inset-y-0 right-0 w-[80%] z-0 pointer-events-none">
                 <Spline scene="https://prod.spline.design/LeL9on7xW5kFLbw6/scene.splinecode" />
