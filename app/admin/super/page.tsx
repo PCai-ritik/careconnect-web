@@ -177,20 +177,12 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
         setError(null);
 
         try {
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/admin/upload-logo`, {
+            const data = await apiRequest<{ logo_url: string }>({
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${token}`
-                },
+                path: "/admin/upload-logo",
                 body: formData
             });
 
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.detail || "Failed to upload logo.");
-            }
-
-            const data = await response.json();
             if (isEdit) {
                 setEditHospLogoUrl(data.logo_url);
             } else {
@@ -220,6 +212,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
             const body = {
                 name: hospName.trim(),
                 brand_color: hospBrandColor,
+                logo_url: hospLogoUrl.trim() || null,
                 domain: hospDomain.trim() || null,
                 subdomain: hospSubdomain.trim() || null,
                 white_label_config: {
@@ -272,6 +265,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
             const body = {
                 name: editHospName.trim(),
                 brand_color: editHospBrandColor,
+                logo_url: editHospLogoUrl.trim() || null,
                 domain: editHospDomain.trim() || null,
                 subdomain: editHospSubdomain.trim() || null,
                 white_label_config: {
@@ -606,7 +600,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
 
             {/* Content Lists */}
             {activeTab === "hospitals" ? (
-                <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-white border border-gray-200/80 rounded-2xl overflow-visible shadow-sm">
                     {hospitals.length === 0 ? (
                         <div className="p-16 text-center text-gray-500">
                             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -614,15 +608,15 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
                             <p className="text-sm mt-1">Get started by creating the first hospital tenant using the buttons above.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-visible">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        <th className="px-6 py-4">Hospital Name</th>
+                                        <th className="px-6 py-4 rounded-tl-2xl">Hospital Name</th>
                                         <th className="px-6 py-4">Brand Config</th>
                                         <th className="px-6 py-4">Custom Domain</th>
                                         <th className="px-6 py-4">Subdomain</th>
-                                        <th className="px-6 py-4 text-right">Actions</th>
+                                        <th className="px-6 py-4 text-right rounded-tr-2xl">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-150 text-sm text-gray-750">
@@ -735,7 +729,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
                     )}
                 </div>
             ) : (
-                <div className="bg-white border border-gray-200/80 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-white border border-gray-200/80 rounded-2xl overflow-visible shadow-sm">
                     {admins.length === 0 ? (
                         <div className="p-16 text-center text-gray-500">
                             <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -743,15 +737,15 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
                             <p className="text-sm mt-1">Create administrator accounts to link them with hospital tenants.</p>
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-visible">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-slate-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        <th className="px-6 py-4">Administrator</th>
+                                        <th className="px-6 py-4 rounded-tl-2xl">Administrator</th>
                                         <th className="px-6 py-4">Role</th>
                                         <th className="px-6 py-4">Assigned Tenant Hospital</th>
                                         <th className="px-6 py-4">Account Status</th>
-                                        <th className="px-6 py-4 text-right">Actions</th>
+                                        <th className="px-6 py-4 text-right rounded-tr-2xl">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-150 text-sm text-gray-750">
@@ -951,7 +945,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Platform Title</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Platform Title</label>
                                         <input
                                             type="text"
                                             value={hospPlatformName}
@@ -961,7 +955,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Logo Upload</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Logo Upload</label>
                                         {createLogoUploading ? (
                                             <div className="w-full h-10 bg-slate-50 border border-gray-200/80 border-dashed rounded-xl flex items-center justify-center gap-2">
                                                 <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
@@ -1113,7 +1107,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <label className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Platform Title</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Platform Title</label>
                                         <input
                                             type="text"
                                             value={editHospPlatformName}
@@ -1123,7 +1117,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-2xs font-bold text-gray-400 uppercase tracking-wider">Logo Upload</label>
+                                        <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Logo Upload</label>
                                         {editLogoUploading ? (
                                             <div className="w-full h-10 bg-slate-50 border border-gray-200/80 border-dashed rounded-xl flex items-center justify-center gap-2">
                                                 <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
@@ -1227,8 +1221,8 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
                                     </div>
                                 </div>
                                 <div className="border-t border-red-200/60 pt-3">
-                                    <p className="text-2xs font-extrabold text-red-800 uppercase tracking-wide mb-2">The following resources will be permanently destroyed:</p>
-                                    <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-2xs text-red-700 list-disc pl-4 font-medium">
+                                    <p className="text-xs font-extrabold text-red-800 uppercase tracking-wide mb-2">The following resources will be permanently destroyed:</p>
+                                    <ul className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-red-700 list-disc pl-4 font-medium">
                                         <li>Administrator & Staff Users</li>
                                         <li>Doctor Profiles & Schedules</li>
                                         <li>Caregiver Profiles</li>
@@ -1462,7 +1456,7 @@ export default function SuperControlsPage() {    const [isPasswordVisible, setIs
                             <div className="space-y-1">
                                 <label className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center justify-between">
                                     <span>New Password</span>
-                                    <span className="text-2xs text-gray-400 normal-case font-normal">(Leave blank to keep current)</span>
+                                    <span className="text-xs text-gray-400 normal-case font-normal">(Leave blank to keep current)</span>
                                 </label>
                                 <div className="relative">
                                     <input

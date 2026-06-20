@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Spline from "@splinetool/react-spline";
 import { Activity, Eye, EyeOff, Loader2 } from "lucide-react";
-import { login, registerDoctor } from "@/lib/auth";
+import { login, registerDoctor, getMe } from "@/lib/auth";
 import { applyDefaultBranding, applyBranding } from "@/lib/theme";
 import { useBranding } from "@/hooks/useBranding";
 import { apiRequest } from "@/lib/api";
@@ -106,7 +106,12 @@ export default function LoginPage() {
         try {
             const res = await login(email, password);
             if (res.role === "DOCTOR") {
-                router.push("/dashboard");
+                const me = await getMe();
+                if (me.onboarding_completed === false) {
+                    router.push("/doctor-onboarding");
+                } else {
+                    router.push("/dashboard");
+                }
             } else if (res.role === "SUPER_ADMIN" || res.role === "ADMIN") {
                 router.push("/admin/branding");
             } else {

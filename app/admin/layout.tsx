@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { Shield, Palette, Users, LogOut, Settings } from "lucide-react";
+import { Shield, Palette, Users, LogOut, Settings, Stethoscope, Heart, HandHeart } from "lucide-react";
 import { getToken } from "@/lib/api";
 import { getMe } from "@/lib/auth";
 import LogoutModal from "@/components/dashboard/LogoutModal";
@@ -60,6 +60,7 @@ export default function AdminLayout({
     const navLinks = [
         { label: "Branding Config", icon: Palette, href: "/admin/branding" },
         { label: "Staff Affiliations", icon: Users, href: "/admin/staff" },
+        { label: "Doctors", icon: Stethoscope, href: "/admin/doctors" },
     ];
 
     if (userRole === "SUPER_ADMIN") {

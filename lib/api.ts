@@ -85,7 +85,7 @@ async function refreshAccessToken(): Promise<string | null> {
 interface RequestConfig {
     method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
     path: string;
-    body?: Record<string, unknown>;
+    body?: Record<string, unknown> | FormData;
     headers?: Record<string, string>;
     params?: Record<string, string>;
 }
@@ -101,15 +101,20 @@ export async function apiRequest<T>(config: RequestConfig): Promise<T> {
 
     const token = getToken();
 
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+    const fetchHeaders: Record<string, string> = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+    };
+    if (!isFormData) {
+        fetchHeaders['Content-Type'] = 'application/json';
+    }
+
     let res = await fetch(url, {
         method,
         credentials: 'include', // send refresh cookie
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            ...headers,
-        },
-        body: body ? JSON.stringify(body) : undefined,
+        headers: fetchHeaders,
+        body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined),
     });
 
     // ── Auto-refresh on 401 ──
@@ -129,11 +134,10 @@ export async function apiRequest<T>(config: RequestConfig): Promise<T> {
                 method,
                 credentials: 'include',
                 headers: {
-                    'Content-Type': 'application/json',
+                    ...fetchHeaders,
                     Authorization: `Bearer ${newToken}`,
-                    ...headers,
                 },
-                body: body ? JSON.stringify(body) : undefined,
+                body: isFormData ? (body as FormData) : (body ? JSON.stringify(body) : undefined),
             });
         } else {
             // Refresh failed — session is truly expired

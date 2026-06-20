@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getToken, getStoredUser } from "@/lib/api";
+import { getMe } from "@/lib/auth";
 
 /**
  * Auth guard — checks for an access token on mount and on focus.
@@ -15,13 +16,24 @@ export default function AuthGuard() {
     const [checked, setChecked] = useState(false);
 
     useEffect(() => {
-        const check = () => {
+        const check = async () => {
             const token = getToken();
             const user = getStoredUser();
             if (!token) {
                 router.replace("/login");
             } else if (user && (user.role === "ADMIN" || user.role === "SUPER_ADMIN")) {
                 router.replace("/admin");
+            } else if (user && user.role === "DOCTOR") {
+                try {
+                    const me = await getMe();
+                    if (me.onboarding_completed === false) {
+                        router.replace("/doctor-onboarding");
+                    } else {
+                        setChecked(true);
+                    }
+                } catch (e) {
+                    router.replace("/login");
+                }
             } else {
                 setChecked(true);
             }

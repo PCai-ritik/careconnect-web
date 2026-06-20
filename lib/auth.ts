@@ -29,6 +29,7 @@ export interface MeResponse {
     is_active: boolean;
     created_at: string;
     affiliation_status: string;
+    onboarding_completed?: boolean;
 }
 
 // ─── Auth Functions ─────────────────────────────────────────────────────────

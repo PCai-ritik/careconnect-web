@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    Activity, ChevronDown, Upload, CheckCircle,
+    Activity, ChevronDown, ChevronUp, Upload, CheckCircle,
     Shield, Calendar, CreditCard, Check, ArrowLeft, ArrowRight,
     Clock, Globe, Award, Smartphone, Square, CheckSquare,
     User, FileText, Loader2,
@@ -169,7 +169,6 @@ export default function DoctorOnboardingPage() {
         experience: "",
         licenseNumber: "",
         licenseState: "",
-        hospitalAffiliation: "",
         phoneNumber: "",
         bio: "",
         documentUploaded: false,
@@ -223,7 +222,6 @@ export default function DoctorOnboardingPage() {
                 ...prev,
                 licenseNumber: "MD-8472910",
                 licenseState: "California, USA",
-                hospitalAffiliation: "Cedars-Sinai Medical Center",
             }));
             setIsAnalyzing(false);
         }, 2500);
@@ -246,11 +244,27 @@ export default function DoctorOnboardingPage() {
         }));
     };
 
-    const cycleTime = (day: string, field: "startTime" | "endTime") => {
+    const cycleHour = (day: string, field: "startTime" | "endTime", direction: number) => {
         setFormData((prev) => {
             const current = prev.schedule[day][field];
-            const idx = TIME_OPTIONS.indexOf(current);
-            const next = TIME_OPTIONS[(idx + 1) % TIME_OPTIONS.length];
+            let [h, m] = current.split(":");
+            let hour = parseInt(h);
+            hour = (hour + direction + 24) % 24;
+            const next = `${hour.toString().padStart(2, '0')}:${m}`;
+            return {
+                ...prev,
+                schedule: { ...prev.schedule, [day]: { ...prev.schedule[day], [field]: next } },
+            };
+        });
+    };
+
+    const cycleMinute = (day: string, field: "startTime" | "endTime", direction: number) => {
+        setFormData((prev) => {
+            const current = prev.schedule[day][field];
+            let [h, m] = current.split(":");
+            let minute = parseInt(m);
+            minute = (minute + direction * 15 + 60) % 60;
+            const next = `${h}:${minute.toString().padStart(2, '0')}`;
             return {
                 ...prev,
                 schedule: { ...prev.schedule, [day]: { ...prev.schedule[day], [field]: next } },
@@ -283,7 +297,6 @@ export default function DoctorOnboardingPage() {
                 specialization: formData.specialization,
                 years_of_experience: formData.experience,
                 license_number: formData.licenseNumber,
-                hospital_affiliation: formData.hospitalAffiliation,
                 phone_number: formData.phoneNumber || undefined,
                 bio: formData.bio,
                 consultation_duration_minutes: durationMap[formData.consultationDuration] || 30,
@@ -590,15 +603,6 @@ export default function DoctorOnboardingPage() {
                                         </div>
                                     </div>
 
-                                    {/* Hospital Affiliation */}
-                                    <div>
-                                        <label className="block text-[11px] font-semibold tracking-[1.5px] text-gray-400 mb-2 uppercase">
-                                            Hospital / Clinic Affiliation
-                                        </label>
-                                        <input type="text" placeholder="e.g. Doon Medical College" value={formData.hospitalAffiliation}
-                                            onChange={(e) => update("hospitalAffiliation", e.target.value)} className={inputClass} />
-                                    </div>
-
                                     {/* Phone / WhatsApp Number */}
                                     <div>
                                         <label className="block text-[11px] font-semibold tracking-[1.5px] text-gray-400 mb-2 uppercase">
@@ -661,16 +665,36 @@ export default function DoctorOnboardingPage() {
                                                         </button>
                                                         <span className={`text-sm w-24 font-medium ${sched.enabled ? "text-gray-900" : "text-gray-400"}`}>{day}</span>
                                                         {sched.enabled && (
-                                                            <div className="flex items-center gap-1.5 ml-auto">
-                                                                <button type="button" onClick={() => cycleTime(day, "startTime")}
-                                                                    className="px-3 py-1.5 bg-white rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors border border-gray-200 shadow-sm">
-                                                                    {sched.startTime}
-                                                                </button>
+                                                            <div className="flex items-center gap-2 ml-auto">
+                                                                <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-0.5 shadow-sm">
+                                                                    <div className="flex flex-col items-center">
+                                                                        <button type="button" onClick={() => cycleHour(day, "startTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                        <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{sched.startTime.split(':')[0]}</span>
+                                                                        <button type="button" onClick={() => cycleHour(day, "startTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-gray-400 pb-0.5">:</span>
+                                                                    <div className="flex flex-col items-center">
+                                                                        <button type="button" onClick={() => cycleMinute(day, "startTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                        <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{sched.startTime.split(':')[1]}</span>
+                                                                        <button type="button" onClick={() => cycleMinute(day, "startTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                    </div>
+                                                                </div>
+
                                                                 <span className="text-xs text-gray-400">to</span>
-                                                                <button type="button" onClick={() => cycleTime(day, "endTime")}
-                                                                    className="px-3 py-1.5 bg-white rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 cursor-pointer transition-colors border border-gray-200 shadow-sm">
-                                                                    {sched.endTime}
-                                                                </button>
+
+                                                                <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-0.5 shadow-sm">
+                                                                    <div className="flex flex-col items-center">
+                                                                        <button type="button" onClick={() => cycleHour(day, "endTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                        <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{sched.endTime.split(':')[0]}</span>
+                                                                        <button type="button" onClick={() => cycleHour(day, "endTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                    </div>
+                                                                    <span className="text-xs font-bold text-gray-400 pb-0.5">:</span>
+                                                                    <div className="flex flex-col items-center">
+                                                                        <button type="button" onClick={() => cycleMinute(day, "endTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                        <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{sched.endTime.split(':')[1]}</span>
+                                                                        <button type="button" onClick={() => cycleMinute(day, "endTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>
