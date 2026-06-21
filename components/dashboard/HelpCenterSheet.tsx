@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, HelpCircle, ChevronDown, Search, Video, FileText, Users, CreditCard, Shield, Headphones } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 
 /* ── FAQ Data ──────────────────────────────────────────────────────── */
 
@@ -160,6 +161,8 @@ export default function HelpCenterSheet({
     const [searchQuery, setSearchQuery] = useState("");
     const branding = useBranding();
     const faqCategories = getFaqCategories(branding.name);
+
+    useLockBodyScroll(isOpen);
 
     const toggleItem = (key: string) => {
         setExpandedItems(prev => {

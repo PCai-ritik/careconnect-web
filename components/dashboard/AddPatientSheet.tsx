@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, UserPlus, AlertCircle, CheckCircle, Shield, Loader2 } from "lucide-react";
 import { addPatient } from "@/lib/dashboard";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 
 /* ── Constants (mirrors mobile) ─────────────────────────────────────── */
 
@@ -72,6 +73,8 @@ export default function AddPatientSheet({
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useLockBodyScroll(isOpen);
 
     const isFormValid =
         formData.fullName.trim() !== "" &&

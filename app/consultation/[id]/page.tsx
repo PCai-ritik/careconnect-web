@@ -201,26 +201,7 @@ export default function ConsultationRoom({ params }: { params: Promise<{ id: str
                             </div>
                         </div>
 
-                        {/* ── Top-right: Room ID ── */}
-                        <div className="absolute top-5 right-5 flex items-center gap-2 z-10">
-                            <button
-                                onClick={copyId}
-                                className="text-slate-300 text-xs bg-slate-800/60 px-3 py-1.5 rounded-lg backdrop-blur-md border border-slate-700/50 flex items-center gap-1.5 hover:bg-slate-700/70 transition-colors cursor-pointer"
-                            >
-                                <span className="font-mono">Room: {id}</span>
-                                <Copy size={11} />
-                            </button>
-                            <AnimatePresence>
-                                {copied && (
-                                    <motion.span
-                                        initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                                        className="text-green-400 text-xs"
-                                    >
-                                        Copied!
-                                    </motion.span>
-                                )}
-                            </AnimatePresence>
-                        </div>
+
 
                         {/* ── Remote Participant Video ── */}
                         <RemoteVideo patientJoinedRef={patientJoinedRef} />
@@ -269,7 +250,7 @@ export default function ConsultationRoom({ params }: { params: Promise<{ id: str
                             <div className="w-px h-8 bg-slate-700" />
 
                             {/* End Call */}
-                            <EndCallButton router={router} appointmentId={id} patientJoinedRef={patientJoinedRef} />
+                            <EndCallButton router={router} appointmentId={id} patientJoinedRef={patientJoinedRef} isPanelOpen={isPanelOpen} />
                         </div>
 
                         {/* ── Duration Notification Toast ── */}
@@ -323,9 +304,6 @@ export default function ConsultationRoom({ params }: { params: Promise<{ id: str
                                         <div>
                                             <p className="text-sm font-medium text-gray-900">{patientName}</p>
                                             <p className="text-xs text-gray-400 mt-0.5">{patient?.existing_conditions?.[0] ?? '—'} • Video Consultation</p>
-                                        </div>
-                                        <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 text-xs font-semibold">
-                                            {patientName.split(' ').map(n => n[0]).join('')}
                                         </div>
                                     </div>
                                 </div>
@@ -521,14 +499,13 @@ function RemoteVideo(props: { patientJoinedRef: React.MutableRefObject<boolean> 
     return (
         <div className="flex flex-col items-center">
             <div className="relative">
-                <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-600/20 border-2 border-blue-500/30 flex items-center justify-center">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center">
+                <div className="w-28 h-28 rounded-full bg-slate-800/50 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-slate-700 flex items-center justify-center">
                         <svg viewBox="0 0 24 24" className="w-12 h-12 text-slate-400" fill="currentColor">
                             <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
                         </svg>
                     </div>
                 </div>
-                <div className="absolute inset-0 rounded-full border-2 border-blue-500/20 animate-ping" />
             </div>
             <p className="text-slate-300 font-medium mt-5 text-sm">Waiting for patient to join...</p>
             <p className="text-slate-500 text-xs mt-1">Patient has been notified</p>
@@ -569,8 +546,8 @@ function LocalPiP({ isVideoOff, isMuted }: { isVideoOff: boolean; isMuted: boole
                     You
                 </div>
                 {isMuted && (
-                    <div className="absolute bottom-5 left-1.5 w-5 h-5 rounded-full bg-red-500 flex items-center justify-center z-20">
-                        <MicOff size={10} className="text-white" />
+                    <div className="absolute bottom-5 left-1.5 z-20 bg-slate-900/60 p-1 rounded-md backdrop-blur-sm">
+                        <MicOff size={12} className="text-red-400" />
                     </div>
                 )}
             </div>
@@ -616,10 +593,11 @@ function CameraButton({ isVideoOff, setIsVideoOff }: { isVideoOff: boolean; setI
     );
 }
 
-function EndCallButton({ router, appointmentId, patientJoinedRef }: {
+function EndCallButton({ router, appointmentId, patientJoinedRef, isPanelOpen }: {
     router: ReturnType<typeof useRouter>;
     appointmentId: string;
     patientJoinedRef: React.MutableRefObject<boolean>;
+    isPanelOpen: boolean;
 }) {
     const { localParticipant } = useLocalParticipant();
     const handleEnd = useCallback(async () => {
@@ -634,10 +612,11 @@ function EndCallButton({ router, appointmentId, patientJoinedRef }: {
     return (
         <button
             onClick={handleEnd}
-            className="px-6 h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-colors flex items-center gap-2 cursor-pointer"
+            className={`h-12 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all flex items-center justify-center cursor-pointer ${isPanelOpen ? "w-12 px-0" : "px-6 gap-2"}`}
+            title="End Call"
         >
             <PhoneOff size={18} />
-            End Call
+            {!isPanelOpen && <span>End Call</span>}
         </button>
     );
 }

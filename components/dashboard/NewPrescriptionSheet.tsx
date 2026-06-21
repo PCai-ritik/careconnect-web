@@ -27,7 +27,9 @@ import {
     type AvailableSlot,
 } from "@/lib/dashboard";
 import { getMe } from "@/lib/auth";
+import { API_BASE_URL } from "@/lib/api";
 import { useBranding } from "@/hooks/useBranding";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -322,6 +324,8 @@ export default function NewPrescriptionSheet({
     const branding = useBranding();
 
     const isPatientLocked = !!patient;
+
+    useLockBodyScroll(isOpen);
 
     // Fetch doctor profile once
     useEffect(() => {
@@ -942,7 +946,16 @@ export default function NewPrescriptionSheet({
                                     <div className="text-center border-b border-gray-200 pb-5 mb-5">
                                         <h3 className="text-lg font-bold text-gray-900">Dr. {doctorName}</h3>
                                         {doctorLabel && <p className="text-sm text-gray-500">{doctorLabel}</p>}
-                                        <p className="text-xs text-gray-400 mt-0.5">{branding.name}</p>
+                                        <div className="flex items-center justify-center gap-2 mt-2">
+                                            {branding.logo_url && (
+                                                <img 
+                                                    src={branding.logo_url.startsWith('http') ? branding.logo_url : `${API_BASE_URL}${branding.logo_url}`} 
+                                                    alt="Hospital Logo" 
+                                                    className="w-5 h-5 object-contain" 
+                                                />
+                                            )}
+                                            <p className="text-xs font-medium text-gray-400">{branding.name}</p>
+                                        </div>
                                     </div>
 
                                     {/* Patient Row */}

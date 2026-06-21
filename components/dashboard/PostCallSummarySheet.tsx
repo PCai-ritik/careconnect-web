@@ -7,6 +7,7 @@ import {
     FileText, Download, Loader2, CheckCircle, Languages
 } from "lucide-react";
 import { getPostCallSummary, type PostCallSummaryResponse } from "@/lib/dashboard";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 
 export default function PostCallSummarySheet({
     appointmentId,
@@ -21,6 +22,8 @@ export default function PostCallSummarySheet({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showLocal, setShowLocal] = useState(false);
+
+    useLockBodyScroll(isOpen);
 
     useEffect(() => {
         if (!isOpen || !appointmentId) {

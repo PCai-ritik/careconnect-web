@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, FileText, Shield, Scale, Database, Globe, AlertTriangle } from "lucide-react";
 import { useBranding } from "@/hooks/useBranding";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 
 /* ── Component ──────────────────────────────────────────────────────── */
 
@@ -14,6 +15,8 @@ export default function TermsOfServiceSheet({
     onClose: () => void;
 }) {
     const branding = useBranding();
+    useLockBodyScroll(isOpen);
+
     return (
         <AnimatePresence>
             {isOpen && (

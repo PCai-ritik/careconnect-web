@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { submitDoctorOnboarding, submitDoctorAvailability, verifyMedicalLicense } from "@/lib/dashboard";
 import {
     Activity, ChevronDown, ChevronUp, Upload, CheckCircle,
     Shield, Calendar, CreditCard, Check, ArrowLeft, ArrowRight,
@@ -80,7 +82,6 @@ interface FormData {
     experience: string;
     licenseNumber: string;
     licenseState: string;
-    hospitalAffiliation: string;
     phoneNumber: string;
     bio: string;
     documentUploaded: boolean;
@@ -161,6 +162,7 @@ export default function DoctorOnboardingPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [uploadedFileName, setUploadedFileName] = useState("");
+    const [uploadError, setUploadError] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [formData, setFormData] = useState<FormData>({
@@ -207,27 +209,31 @@ export default function DoctorOnboardingPage() {
     const update = <K extends keyof FormData>(key: K, value: FormData[K]) =>
         setFormData((prev) => ({ ...prev, [key]: value }));
 
-    // Mock AI document analysis — auto-fills license fields after upload
-    const handleDocumentPick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // AI document analysis — auto-fills license fields after upload
+    const handleDocumentPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
         setUploadedFileName(file.name);
+        setUploadError("");
         setIsAnalyzing(true);
         update("documentUploaded", true);
 
-        // Simulate AI analysis with a 2.5s delay
-        setTimeout(() => {
+        try {
+            const result = await verifyMedicalLicense(file);
             setFormData((prev) => ({
                 ...prev,
-                licenseNumber: "MD-8472910",
-                licenseState: "California, USA",
+                licenseNumber: result.license_number,
+                licenseState: result.license_state,
             }));
+        } catch (error: any) {
+            setUploadError(error.message || "Failed to verify document. Please try again.");
+            update("documentUploaded", false);
+            setUploadedFileName("");
+        } finally {
             setIsAnalyzing(false);
-        }, 2500);
-
-        // Reset input so the same file can be re-selected
-        if (fileInputRef.current) fileInputRef.current.value = "";
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
     };
 
     const filteredSpecs = SPECIALIZATIONS.filter((s) =>
@@ -288,8 +294,6 @@ export default function DoctorOnboardingPage() {
         setIsSubmitting(true);
 
         try {
-            const { submitDoctorOnboarding, submitDoctorAvailability } = await import('@/lib/dashboard');
-
             // 1. Submit doctor profile
             const durationMap: Record<string, number> = { '15 min': 15, '30 min': 30, '45 min': 45, '60 min': 60 };
             await submitDoctorOnboarding({
@@ -537,6 +541,13 @@ export default function DoctorOnboardingPage() {
                                             </>
                                         )}
                                     </button>
+
+                                    {uploadError && (
+                                        <div className="bg-red-50 text-red-600 text-sm p-4 rounded-xl border border-red-100 flex items-start gap-3 mt-2">
+                                            <Shield size={18} className="shrink-0 mt-0.5" />
+                                            <p>{uploadError}</p>
+                                        </div>
+                                    )}
 
                                     {/* Specialization + Experience — side by side */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

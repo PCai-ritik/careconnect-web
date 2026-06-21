@@ -262,7 +262,7 @@ export default function DashboardHomePage() {
                                             Next Appointment • {nextAppointmentDisplay.timeUntil}
                                         </span>
                                     </div>
-                                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${avatarColors[0]}`}>
+                                    <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
                                         <User size={20} />
                                     </div>
                                     <div>
@@ -322,7 +322,7 @@ export default function DashboardHomePage() {
                                             href={`/consultation/${row.id}`}
                                             className="flex items-center gap-3 text-left cursor-pointer"
                                         >
-                                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${avatarColors[index % avatarColors.length]}`}>
+                                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
                                                 <User size={18} />
                                             </div>
                                             <div>

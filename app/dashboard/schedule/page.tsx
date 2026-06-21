@@ -300,7 +300,7 @@ export default function SchedulePage() {
                                 </div>
 
                                 {/* Col 4 — Actions */}
-                                <div className="flex justify-end gap-2">
+                                <div className="flex flex-col items-end gap-2">
                                     {(() => {
                                         const isProcessing = appt.rawStatus === 'IN_PROGRESS' && (new Date(appt.scheduledTime).getTime() + appt.duration * 60000) < Date.now();
 
@@ -318,14 +318,14 @@ export default function SchedulePage() {
                                                 <>
                                                     <button
                                                         onClick={() => setRescheduleModal({ id: appt.id, name: appt.name })}
-                                                        className="bg-white border border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                                        className="bg-white border border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center justify-center w-[120px] gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
                                                     >
                                                         <Calendar size={14} />
                                                         Reschedule
                                                     </button>
                                                     <Link
                                                         href={`/consultation/${appt.id}`}
-                                                        className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                                        className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center justify-center w-[120px] gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
                                                     >
                                                         <Video size={14} />
                                                         Join Call
@@ -337,7 +337,7 @@ export default function SchedulePage() {
                                         return (
                                             <button 
                                                 onClick={() => setSummaryModalId(appt.id)}
-                                                className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                                className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer whitespace-nowrap"
                                             >
                                                 <FileText size={14} />
                                                 View Summary

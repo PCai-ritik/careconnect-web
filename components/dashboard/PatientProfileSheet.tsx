@@ -16,6 +16,7 @@ import {
     type MedicalRecordResponse,
 } from "@/lib/dashboard";
 import { getMe } from "@/lib/auth";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 
 /* ── Tab config ──────────────────────────────────────────────────────── */
 
@@ -315,6 +316,8 @@ export default function PatientProfileSheet({
     const [startingCall, setStartingCall] = useState(false);
     const router = useRouter();
 
+    useLockBodyScroll(isOpen);
+
     // Fetch medical records when sheet opens
     useEffect(() => {
         if (isOpen && patient) {
@@ -447,7 +450,7 @@ export default function PatientProfileSheet({
                             {onNewPrescription && (
                                 <button
                                     onClick={() => { onClose(); onNewPrescription(); }}
-                                    className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm cursor-pointer"
+                                    className="w-full bg-[var(--brand-primary)]/10 hover:bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] py-2.5 rounded-xl font-medium transition-colors flex items-center justify-center gap-2 text-sm cursor-pointer"
                                 >
                                     <FileText size={15} />
                                     New Prescription

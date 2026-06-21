@@ -10,6 +10,7 @@ import {
     submitDoctorAvailability,
     type DoctorAvailabilitySlot,
 } from "@/lib/dashboard";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 
 /* ── Constants ───────────────────────────────────────────────────────── */
 
@@ -113,6 +114,8 @@ export default function ScheduleEditorSheet({ isOpen, onClose, onSaved }: Props)
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+
+    useLockBodyScroll(isOpen);
 
     // Load current schedule when sheet opens
     useEffect(() => {

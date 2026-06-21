@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, User, Stethoscope, Mail, Phone, MapPin, CheckCircle, FileText, CreditCard } from "lucide-react";
 import { getDoctorProfile, updateDoctorProfile, type DoctorProfile } from "@/lib/dashboard";
@@ -17,7 +18,6 @@ interface FormFields {
     email: string;
     phone: string;
     licenseNumber: string;
-    hospitalAffiliation: string;
     bio: string;
     consultationFee: string;
 }
@@ -28,7 +28,6 @@ const emptyForm: FormFields = {
     email: "",
     phone: "",
     licenseNumber: "",
-    hospitalAffiliation: "",
     bio: "",
     consultationFee: "",
 };
@@ -38,6 +37,8 @@ export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfi
     const [showSuccess, setShowSuccess] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+
+    useLockBodyScroll(isOpen);
 
     // Fetch current profile when sheet opens
     useEffect(() => {
@@ -52,7 +53,6 @@ export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfi
                     email: "", // email lives on User, not Doctor — read-only
                     phone: p.phone_number || "",
                     licenseNumber: p.license_number || "",
-                    hospitalAffiliation: p.hospital_affiliation || "",
                     bio: p.bio || "",
                     consultationFee: p.consultation_fee ? String(p.consultation_fee) : "",
                 });
@@ -73,7 +73,6 @@ export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfi
                 specialization: formData.specialization || undefined,
                 phone_number: formData.phone || undefined,
                 license_number: formData.licenseNumber || undefined,
-                hospital_affiliation: formData.hospitalAffiliation || undefined,
                 bio: formData.bio || undefined,
                 consultation_fee: formData.consultationFee ? parseFloat(formData.consultationFee) : undefined,
             });
@@ -95,7 +94,6 @@ export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfi
         { key: "specialization" as const, label: "Specialization", icon: Stethoscope, type: "text", placeholder: "e.g. Cardiologist" },
         { key: "phone" as const, label: "Phone / WhatsApp", icon: Phone, type: "tel", placeholder: "+91 XXXXX XXXXX" },
         { key: "licenseNumber" as const, label: "License / Registration No.", icon: FileText, type: "text", placeholder: "e.g. NMC-78291" },
-        { key: "hospitalAffiliation" as const, label: "Hospital / Clinic", icon: MapPin, type: "text", placeholder: "Hospital or Clinic name" },
         { key: "consultationFee" as const, label: "Consultation Fee (₹)", icon: CreditCard, type: "number", placeholder: "e.g. 500" },
     ];
 

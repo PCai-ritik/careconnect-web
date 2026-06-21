@@ -93,7 +93,7 @@ export default function SettingsPage() {
     const fee = profile?.consultation_fee
         ? `${profile.currency === 'INR' ? '₹' : '$'} ${profile.consultation_fee}`
         : "—";
-    const hospital = profile?.hospital_affiliation || "—";
+    const hospital = hospitals.find(h => h.id === me?.hospital_id)?.name || branding.name || "—";
 
     return (
         <>

@@ -230,6 +230,22 @@ export async function submitDoctorAvailability(
     });
 }
 
+export interface LicenseVerificationResult {
+    is_valid: boolean;
+    license_number: string;
+    license_state: string;
+}
+
+export async function verifyMedicalLicense(file: File): Promise<LicenseVerificationResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiRequest<LicenseVerificationResult>({
+        method: 'POST',
+        path: '/doctors/verify-license',
+        body: formData,
+    });
+}
+
 // ─── Video Session ──────────────────────────────────────────────────────────
 
 export async function startVideoSession(appointmentId: string): Promise<VideoSessionResponse> {
