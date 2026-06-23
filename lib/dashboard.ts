@@ -23,6 +23,8 @@ export interface AppointmentResponse {
     status: 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
     reason: string | null;
     meeting_room_id: string | null;
+    location_address: string | null;
+    check_in_status: string | null;
     created_at: string;
 }
 
@@ -69,8 +71,11 @@ export interface DoctorProfile {
     years_of_experience: string | null;
     bio: string | null;
     license_number: string | null;
+    clinic_name: string | null;
+    clinic_address: string | null;
     consultation_duration_minutes: number | null;
-    consultation_fee: number | null;
+    video_consultation_fee: number | null;
+    in_person_consultation_fee: number | null;
     currency: string;
     accepted_payment_methods: string[] | null;
     onboarding_completed: boolean;
@@ -82,6 +87,7 @@ export interface DoctorAvailabilitySlot {
     start_time: string;   // HH:MM
     end_time: string;     // HH:MM
     is_enabled: boolean;
+    appointment_type: 'VIDEO' | 'IN_PERSON';
 }
 
 export interface VideoSessionResponse {
@@ -120,6 +126,13 @@ export async function updateAppointmentStatus(
         method: 'PATCH',
         path: `/appointments/${id}/status`,
         body: { status },
+    });
+}
+
+export async function endVideoSession(id: string): Promise<void> {
+    return apiRequest<void>({
+        method: 'POST',
+        path: `/appointments/${id}/end-session`,
     });
 }
 
@@ -189,10 +202,13 @@ export async function submitDoctorOnboarding(data: {
     years_of_experience?: string;
     license_number?: string;
     hospital_affiliation?: string;
+    clinic_name?: string;
+    clinic_address?: string;
     bio?: string;
     phone_number?: string;
     consultation_duration_minutes?: number;
-    consultation_fee?: number;
+    video_consultation_fee?: number;
+    in_person_consultation_fee?: number;
     currency?: string;
     accepted_payment_methods?: string[];
 }): Promise<DoctorProfile> {
@@ -209,8 +225,11 @@ export async function updateDoctorProfile(data: {
     phone_number?: string;
     license_number?: string;
     hospital_affiliation?: string;
+    clinic_name?: string;
+    clinic_address?: string;
     bio?: string;
-    consultation_fee?: number;
+    video_consultation_fee?: number;
+    in_person_consultation_fee?: number;
     currency?: string;
 }): Promise<DoctorProfile> {
     return apiRequest<DoctorProfile>({

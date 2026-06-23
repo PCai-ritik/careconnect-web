@@ -6,6 +6,9 @@ import { Search, Video, User, FileText, Loader2, AlertTriangle, Calendar } from 
 import Link from "next/link";
 import { getAppointments, getPatients, updateAppointmentStatus, type AppointmentResponse, type PatientResponse } from "@/lib/dashboard";
 import PostCallSummarySheet from "@/components/dashboard/PostCallSummarySheet";
+import PatientProfileSheet from "@/components/dashboard/PatientProfileSheet";
+import NewPrescriptionSheet from "@/components/dashboard/NewPrescriptionSheet";
+import type { PrescriptionPatient } from "@/components/dashboard/NewPrescriptionSheet";
 
 /* ── Avatar Color Palette ────────────────────────────────────────────── */
 
@@ -17,19 +20,6 @@ const avatarColors = [
     "bg-amber-50 text-amber-600",
 ];
 
-/* ── Mock Fallback Data ──────────────────────────────────────────────── */
-
-const MOCK_APPOINTMENTS = [
-    { id: "dappt-001", name: "Ananya Gupta", type: "Video Consultation", date: "Today", time: "9:00 AM", status: "upcoming" as const },
-    { id: "dappt-002", name: "Rahul Verma", type: "Follow-up", date: "Today", time: "10:30 AM", status: "upcoming" as const },
-    { id: "dappt-003", name: "Meera Iyer", type: "New Patient", date: "Today", time: "11:45 AM", status: "upcoming" as const },
-    { id: "dappt-004", name: "Siddharth Rao", type: "Video Consultation", date: "Today", time: "2:00 PM", status: "upcoming" as const },
-    { id: "dappt-005", name: "Sarah Johnson", type: "Video Consultation", date: "Tomorrow", time: "9:30 AM", status: "upcoming" as const },
-    { id: "dappt-006", name: "Michael Brown", type: "Follow-up", date: "Mar 25, 2026", time: "11:00 AM", status: "upcoming" as const },
-    { id: "dappt-007", name: "Emily Davis", type: "Video Consultation", date: "Mar 20, 2026", time: "3:00 PM", status: "completed" as const },
-    { id: "dappt-008", name: "Ananya Gupta", type: "Follow-up", date: "Mar 18, 2026", time: "10:00 AM", status: "completed" as const },
-    { id: "dappt-009", name: "James Wilson", type: "In-Person", date: "Mar 15, 2026", time: "1:00 PM", status: "completed" as const },
-];
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
 
@@ -47,9 +37,10 @@ function formatTime(iso: string): string {
     return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-function mapStatus(s: string): "upcoming" | "completed" {
+function mapStatus(s: string, scheduledTime: string): "upcoming" | "overdue" | "completed" {
     if (s === 'COMPLETED' || s === 'CANCELLED' || s === 'NO_SHOW') return 'completed';
-    return 'upcoming'; // CONFIRMED → upcoming
+    if (new Date(scheduledTime) < new Date()) return 'overdue';
+    return 'upcoming';
 }
 
 /* ── Emergency Reschedule Modal ──────────────────────────────────────── */
@@ -125,7 +116,6 @@ function EmergencyRescheduleModal({
 export default function SchedulePage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [loading, setLoading] = useState(true);
-    const [useMock, setUseMock] = useState(false);
     const [rawAppointments, setRawAppointments] = useState<AppointmentResponse[]>([]);
     const [patients, setPatients] = useState<PatientResponse[]>([]);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -133,6 +123,21 @@ export default function SchedulePage() {
     // Emergency reschedule modal state
     const [rescheduleModal, setRescheduleModal] = useState<{ id: string; name: string } | null>(null);
     const [summaryModalId, setSummaryModalId] = useState<string | null>(null);
+
+    // Patient Profile Modal State
+    const [selectedPatient, setSelectedPatient] = useState<PatientResponse | null>(null);
+    const [isSheetOpen, setIsSheetOpen] = useState(false);
+    const [isPrescriptionOpen, setIsPrescriptionOpen] = useState(false);
+    const [prescriptionPatient, setPrescriptionPatient] = useState<PrescriptionPatient | null>(null);
+    const [profileRefreshKey, setProfileRefreshKey] = useState(0);
+
+    const openSheet = (patientId: string) => {
+        const raw = patients.find(p => p.id === patientId);
+        if (raw) {
+            setSelectedPatient(raw);
+            setIsSheetOpen(true);
+        }
+    };
 
     useEffect(() => {
         async function load() {
@@ -144,7 +149,7 @@ export default function SchedulePage() {
                 setRawAppointments(data);
                 setPatients(pts);
             } catch {
-                setUseMock(true);
+                // API failure — leave rawAppointments empty, show empty state below
             } finally {
                 setLoading(false);
             }
@@ -152,21 +157,21 @@ export default function SchedulePage() {
         load();
     }, []);
 
-    // Map API data → display format (no more pending filtering — all are auto-confirmed)
+    // Map API data → display format
     const patientMap = new Map(patients.map(p => [p.id, p.full_name]));
-    const allAppointments = useMock
-        ? MOCK_APPOINTMENTS.map(a => ({ ...a, rawStatus: "CONFIRMED", duration: 30, scheduledTime: new Date().toISOString() }))
-        : rawAppointments.map(a => ({
-            id: a.id,
-            name: patientMap.get(a.patient_id) ?? 'Unknown Patient',
-            type: a.appointment_type.replace('_', ' '),
-            date: formatDate(a.scheduled_time),
-            time: formatTime(a.scheduled_time),
-            status: mapStatus(a.status),
-            rawStatus: a.status,
-            duration: a.duration_minutes || 30,
-            scheduledTime: a.scheduled_time,
-        }));
+    const allAppointments = rawAppointments.map(a => ({
+        id: a.id,
+        patientId: a.patient_id,
+        name: patientMap.get(a.patient_id) ?? 'Unknown Patient',
+        type: a.appointment_type.replace('_', ' '),
+        rawType: a.appointment_type,
+        date: formatDate(a.scheduled_time),
+        time: formatTime(a.scheduled_time),
+        status: mapStatus(a.status, a.scheduled_time),
+        rawStatus: a.status,
+        duration: a.duration_minutes || 30,
+        scheduledTime: a.scheduled_time,
+    }));
 
     // Emergency reschedule handler → sets status to CANCELLED
     const handleEmergencyReschedule = async () => {
@@ -215,6 +220,15 @@ export default function SchedulePage() {
                             <div className="w-2 h-2 rounded-full bg-green-400" />
                             <span>{filteredAppointments.filter(a => a.status === 'upcoming').length} upcoming</span>
                         </div>
+                        {filteredAppointments.some(a => a.status === 'overdue') && (
+                            <>
+                                <div className="w-px h-4 bg-gray-200" />
+                                <div className="flex items-center gap-1.5 text-sm text-amber-600">
+                                    <div className="w-2 h-2 rounded-full bg-amber-400" />
+                                    <span>{filteredAppointments.filter(a => a.status === 'overdue').length} overdue</span>
+                                </div>
+                            </>
+                        )}
                         <div className="w-px h-4 bg-gray-200" />
                         <div className="flex items-center gap-1.5 text-sm text-gray-500">
                             <div className="w-2 h-2 rounded-full bg-gray-300" />
@@ -289,61 +303,99 @@ export default function SchedulePage() {
 
                                 {/* Col 3 — Status */}
                                 <div className="flex justify-center">
-                                    <span
-                                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${appt.status === "upcoming"
-                                            ? "bg-green-50 text-green-700 border border-green-200"
-                                            : "bg-gray-50 text-gray-500 border border-gray-200"
-                                            }`}
-                                    >
-                                        {appt.status === "upcoming" ? "Confirmed" : "Completed"}
-                                    </span>
+                                    {appt.status === 'upcoming' && (
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+                                            Confirmed
+                                        </span>
+                                    )}
+                                    {appt.status === 'overdue' && (
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                                            <AlertTriangle size={11} />
+                                            Overdue
+                                        </span>
+                                    )}
+                                    {appt.status === 'completed' && (
+                                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                                            Completed
+                                        </span>
+                                    )}
                                 </div>
 
                                 {/* Col 4 — Actions */}
                                 <div className="flex flex-col items-end gap-2">
-                                    {(() => {
-                                        const isProcessing = appt.rawStatus === 'IN_PROGRESS' && (new Date(appt.scheduledTime).getTime() + appt.duration * 60000) < Date.now();
+                                    {appt.rawStatus === 'IN_PROGRESS' && (
+                                        <div className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
+                                            <Loader2 size={14} className="animate-spin" />
+                                            Processing Summary...
+                                        </div>
+                                    )}
 
-                                        if (isProcessing) {
-                                            return (
-                                                <div className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
-                                                    <Loader2 size={14} className="animate-spin" />
-                                                    Processing Summary...
-                                                </div>
-                                            );
-                                        }
-
-                                        if (appt.status === "upcoming") {
-                                            return (
-                                                <>
-                                                    <button
-                                                        onClick={() => setRescheduleModal({ id: appt.id, name: appt.name })}
-                                                        className="bg-white border border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center justify-center w-[120px] gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-                                                    >
-                                                        <Calendar size={14} />
-                                                        Reschedule
-                                                    </button>
-                                                    <Link
-                                                        href={`/consultation/${appt.id}`}
-                                                        className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center justify-center w-[120px] gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
-                                                    >
-                                                        <Video size={14} />
-                                                        Join Call
-                                                    </Link>
-                                                </>
-                                            );
-                                        }
-
-                                        return (
-                                            <button 
-                                                onClick={() => setSummaryModalId(appt.id)}
-                                                className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer whitespace-nowrap"
+                                    {appt.status === 'upcoming' && (
+                                        <>
+                                            <button
+                                                onClick={() => setRescheduleModal({ id: appt.id, name: appt.name })}
+                                                className="bg-white border border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center justify-center w-[120px] gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
                                             >
-                                                <FileText size={14} />
-                                                View Summary
+                                                <Calendar size={14} />
+                                                Reschedule
                                             </button>
-                                        );
-                                    })()}
+                                            {appt.rawType === 'IN_PERSON' ? (
+                                                <span className="text-xs text-emerald-600 font-medium bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center justify-center w-[120px] gap-1.5 cursor-default sm:opacity-0 sm:group-hover:opacity-100 transition-all">
+                                                    <Calendar size={14} />
+                                                    In-Person
+                                                </span>
+                                            ) : (
+                                                <Link
+                                                    href={`/consultation/${appt.id}`}
+                                                    className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center justify-center w-[120px] gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                                >
+                                                    <Video size={14} />
+                                                    Join Call
+                                                </Link>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {appt.status === 'overdue' && appt.rawStatus !== 'IN_PROGRESS' && (
+                                        <>
+                                            <button
+                                                onClick={() => setRescheduleModal({ id: appt.id, name: appt.name })}
+                                                className="bg-white border border-amber-200 hover:border-amber-300 hover:bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center justify-center w-[120px] gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                            >
+                                                <Calendar size={14} />
+                                                Reschedule
+                                            </button>
+                                            {appt.rawType !== 'IN_PERSON' && (
+                                                <Link
+                                                    href={`/consultation/${appt.id}`}
+                                                    className="bg-amber-500 hover:bg-amber-600 text-white border border-amber-500 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center justify-center w-[120px] gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer"
+                                                >
+                                                    <Video size={14} />
+                                                    Join Late
+                                                </Link>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {appt.status === 'completed' && appt.rawType !== 'IN_PERSON' && (
+                                        <button
+                                            onClick={() => setSummaryModalId(appt.id)}
+                                            className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer whitespace-nowrap"
+                                        >
+                                            <FileText size={14} />
+                                            View Summary
+                                        </button>
+                                    )}
+
+                                    {appt.status === 'completed' && appt.rawType === 'IN_PERSON' && (
+                                        <button
+                                            onClick={() => openSheet(appt.patientId)}
+                                            className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 cursor-pointer whitespace-nowrap"
+                                        >
+                                            <User size={14} />
+                                            Open Patient
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))
@@ -365,6 +417,34 @@ export default function SchedulePage() {
                 isOpen={!!summaryModalId}
                 appointmentId={summaryModalId}
                 onClose={() => setSummaryModalId(null)}
+            />
+
+            {/* ── Patient Profile Slide-Over ── */}
+            <PatientProfileSheet
+                patient={selectedPatient}
+                isOpen={isSheetOpen}
+                onClose={() => setIsSheetOpen(false)}
+                onNewPrescription={() => {
+                    if (selectedPatient) {
+                        setPrescriptionPatient({
+                            id: selectedPatient.id,
+                            name: selectedPatient.full_name,
+                            condition: selectedPatient.existing_conditions?.[0] || '—',
+                            dateOfBirth: selectedPatient.date_of_birth,
+                            gender: selectedPatient.gender,
+                            whatsappNumber: selectedPatient.whatsapp_number || undefined,
+                        });
+                    }
+                    setIsSheetOpen(false);
+                    setIsPrescriptionOpen(true);
+                }}
+                key={profileRefreshKey}
+            />
+            <NewPrescriptionSheet
+                isOpen={isPrescriptionOpen}
+                onClose={() => { setIsPrescriptionOpen(false); setPrescriptionPatient(null); }}
+                patient={prescriptionPatient}
+                onPrescriptionCreated={() => setProfileRefreshKey(k => k + 1)}
             />
         </div>
     );

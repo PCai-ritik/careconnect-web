@@ -30,6 +30,7 @@ import { getMe } from "@/lib/auth";
 import { API_BASE_URL } from "@/lib/api";
 import { useBranding } from "@/hooks/useBranding";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
+import { generatePrescriptionHTML } from "@/components/dashboard/prescription-template";
 
 /* ── Types ───────────────────────────────────────────────────────────── */
 
@@ -298,7 +299,94 @@ function Field({ label, locked, children }: { label: string; locked?: boolean; c
     );
 }
 
-/* ── Main Component ──────────────────────────────────────────────────── */
+/* ── Prescription Preview Component ──────────────────────────────── */
+
+function PrescriptionPreview({
+    formData,
+    doctorProfile,
+    branding,
+    patient: lockedPatient,
+}: {
+    formData: FormData;
+    doctorProfile: DoctorProfile | null;
+    branding: any;
+    patient?: PrescriptionPatient | null;
+}) {
+    const iframeRef = useRef<HTMLIFrameElement>(null);
+
+    useEffect(() => {
+        if (!iframeRef.current) return;
+
+        const prescriptionData = {
+            record: {
+                diagnosis: formData.diagnosis,
+                symptoms: formData.complaints || null,
+                treatment: formData.advice || null,
+                follow_up_date: formData.followUp || null,
+                vitals: (formData.vitals.bp || formData.vitals.pulse || formData.vitals.temp || formData.vitals.weight)
+                    ? formData.vitals
+                    : null,
+                prescriptions: formData.medications
+                    .filter((m) => m.name.trim())
+                    .map((m) => ({
+                        medication_name: m.name,
+                        dosage: m.dosage || null,
+                        frequency: m.frequency || null,
+                        duration: m.duration || null,
+                        notes: m.instructions || null,
+                    })),
+            },
+            doctor: {
+                name: doctorProfile?.full_name || "Doctor",
+                specialization: doctorProfile?.specialization || "Medical Professional",
+                license: doctorProfile?.license_number || "",
+                phone: doctorProfile?.phone_number || undefined,
+                clinicName: doctorProfile?.clinic_name || undefined,
+                clinicAddress: doctorProfile?.clinic_address || undefined,
+            },
+            hospital: {
+                name: branding.name || "CareConnect",
+                primaryColor: branding.brand_color || "#1a3a52",
+                secondaryColor: "#7bc041",
+                headingFont: "Segoe UI, sans-serif",
+                bodyFont: "Segoe UI, sans-serif",
+                logoUrl: branding.logo_url
+                    ? branding.logo_url.startsWith("http")
+                        ? branding.logo_url
+                        : `${API_BASE_URL}${branding.logo_url}`
+                    : undefined,
+            },
+            patient: lockedPatient
+                ? {
+                      full_name: lockedPatient.name,
+                      date_of_birth: lockedPatient.dateOfBirth,
+                  }
+                : {
+                      full_name: formData.patientName,
+                      date_of_birth: undefined,
+                  },
+        };
+
+        const html = generatePrescriptionHTML(prescriptionData);
+
+        try {
+            iframeRef.current.srcdoc = html;
+        } catch {
+            console.error("Failed to render prescription preview");
+        }
+    }, [formData, doctorProfile, branding, lockedPatient]);
+
+    return (
+        <iframe
+            ref={iframeRef}
+            className="w-full h-full border border-gray-200 rounded-xl shadow-sm"
+            title="Prescription Preview"
+            sandbox="allow-same-origin"
+        />
+    );
+}
+
+/* ── Main Component ──────────────────────────────────────────────── */
 
 export default function NewPrescriptionSheet({
     isOpen,
@@ -563,111 +651,135 @@ export default function NewPrescriptionSheet({
         window.open(url, '_blank');
     };
 
-    const handlePrintPdf = () => {
-        if (rxRef.current) {
-            const printWindow = window.open('', '_blank');
-            if (!printWindow) return;
-            printWindow.document.write(`
-                <html><head><title>Prescription — ${formData.patientName || 'Patient'}</title>
-                <style>body{font-family:system-ui,sans-serif;padding:40px;color:#111}h3{margin:0}p{margin:4px 0}
-                .sep{border-top:1px solid #e5e7eb;margin:12px 0}</style></head>
-                <body>${rxRef.current.innerHTML}</body></html>
-            `);
-            printWindow.document.close();
-            printWindow.print();
-        }
+    const handlePrintPdf = async () => {
+        const html2pdf = (await import("html2pdf.js")).default;
+
+        const prescriptionData = {
+            record: {
+                diagnosis: formData.diagnosis,
+                symptoms: formData.complaints || null,
+                treatment: formData.advice || null,
+                follow_up_date: formData.followUp || null,
+                vitals: (formData.vitals.bp || formData.vitals.pulse || formData.vitals.temp || formData.vitals.weight)
+                    ? formData.vitals
+                    : null,
+                prescriptions: formData.medications
+                    .filter((m) => m.name.trim())
+                    .map((m) => ({
+                        medication_name: m.name,
+                        dosage: m.dosage || null,
+                        frequency: m.frequency || null,
+                        duration: m.duration || null,
+                        notes: m.instructions || null,
+                    })),
+            },
+            doctor: {
+                name: doctorProfile?.full_name || "Doctor",
+                specialization: doctorProfile?.specialization || "Medical Professional",
+                license: doctorProfile?.license_number || "",
+                phone: doctorProfile?.phone_number || undefined,
+                clinicName: doctorProfile?.clinic_name || undefined,
+                clinicAddress: doctorProfile?.clinic_address || undefined,
+            },
+            hospital: {
+                name: branding.name || "CareConnect",
+                primaryColor: branding.brand_color || "#1a3a52",
+                secondaryColor: "#7bc041",
+                headingFont: "Segoe UI, sans-serif",
+                bodyFont: "Segoe UI, sans-serif",
+                logoUrl: branding.logo_url
+                    ? branding.logo_url.startsWith("http")
+                        ? branding.logo_url
+                        : `${API_BASE_URL}${branding.logo_url}`
+                    : undefined,
+            },
+            patient: patient
+                ? { full_name: patient.name, date_of_birth: patient.dateOfBirth }
+                : { full_name: formData.patientName || "Patient", date_of_birth: undefined },
+        };
+
+        const htmlContent = generatePrescriptionHTML(prescriptionData);
+        const element = document.createElement("div");
+        element.innerHTML = htmlContent;
+
+        html2pdf()
+            .set({
+                margin: 0,
+                filename: `Prescription_${formData.patientName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`,
+                image: { type: "jpeg", quality: 0.98 },
+                html2canvas: { scale: 2 },
+                jsPDF: { format: "a4", orientation: "portrait", margin: 0 },
+            })
+            .from(element)
+            .toPdf()
+            .get("pdf")
+            .then((pdf: any) => {
+                pdf.autoPrint();
+                window.open(pdf.output("bloburl"), "_blank");
+            });
     };
 
     const handleDownloadPdf = async () => {
-        const { default: jsPDF } = await import("jspdf");
-        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-        const W = pdf.internal.pageSize.getWidth();
-        let y = 20;
-
-        const centered = (text: string, size = 11, style: "normal" | "bold" = "normal", color = "#111111") => {
-            pdf.setFontSize(size);
-            pdf.setFont("helvetica", style);
-            pdf.setTextColor(color);
-            pdf.text(text, W / 2, y, { align: "center" });
-            y += size * 0.5 + 2;
+        const html2pdf = (await import("html2pdf.js")).default;
+        
+        const prescriptionData = {
+            record: {
+                diagnosis: formData.diagnosis,
+                symptoms: formData.complaints || null,
+                treatment: formData.advice || null,
+                follow_up_date: formData.followUp || null,
+                vitals: (formData.vitals.bp || formData.vitals.pulse || formData.vitals.temp || formData.vitals.weight)
+                    ? formData.vitals
+                    : null,
+                prescriptions: formData.medications
+                    .filter((m) => m.name.trim())
+                    .map((m) => ({
+                        medication_name: m.name,
+                        dosage: m.dosage || null,
+                        frequency: m.frequency || null,
+                        duration: m.duration || null,
+                        notes: m.instructions || null,
+                    })),
+            },
+            doctor: {
+                name: doctorProfile?.full_name || "Doctor",
+                specialization: doctorProfile?.specialization || "Medical Professional",
+                license: doctorProfile?.license_number || "",
+                phone: doctorProfile?.phone_number || undefined,
+                clinicName: doctorProfile?.clinic_name || undefined,
+                clinicAddress: doctorProfile?.clinic_address || undefined,
+            },
+            hospital: {
+                name: branding.name || "CareConnect",
+                primaryColor: branding.brand_color || "#1a3a52",
+                secondaryColor: "#7bc041",
+                headingFont: "Segoe UI, sans-serif",
+                bodyFont: "Segoe UI, sans-serif",
+                logoUrl: branding.logo_url
+                    ? branding.logo_url.startsWith("http")
+                        ? branding.logo_url
+                        : `${API_BASE_URL}${branding.logo_url}`
+                    : undefined,
+            },
+            patient: patient
+                ? { full_name: patient.name, date_of_birth: patient.dateOfBirth }
+                : { full_name: formData.patientName || "Patient", date_of_birth: undefined },
         };
 
-        const left = (text: string, size = 10, style: "normal" | "bold" = "normal") => {
-            pdf.setFontSize(size);
-            pdf.setFont("helvetica", style);
-            pdf.setTextColor("#111111");
-            const lines = pdf.splitTextToSize(text, W - 28);
-            pdf.text(lines, 14, y);
-            y += lines.length * (size * 0.4 + 2);
+        const htmlContent = generatePrescriptionHTML(prescriptionData);
+
+        const element = document.createElement("div");
+        element.innerHTML = htmlContent;
+
+        const options = {
+            margin: 0,
+            filename: `Prescription_${formData.patientName.replace(/\s+/g, "_")}_${new Date().toISOString().slice(0, 10)}.pdf`,
+            image: { type: "jpeg", quality: 0.98 },
+            html2canvas: { scale: 2 },
+            jsPDF: { format: "a4", orientation: "portrait", margin: 0 },
         };
 
-        const divider = () => {
-            pdf.setDrawColor("#e5e7eb");
-            pdf.line(14, y, W - 14, y);
-            y += 5;
-        };
-
-        // Doctor header
-        centered(`Dr. ${doctorName}`, 16, "bold");
-        if (doctorLabel) centered(doctorLabel, 10, "normal", "#6b7280");
-        centered(branding.name, 9, "normal", "#9ca3af");
-        y += 2;
-        divider();
-
-        // Patient row
-        pdf.setFontSize(10); pdf.setFont("helvetica", "normal"); pdf.setTextColor("#111111");
-        pdf.text(`Patient: ${formData.patientName || "—"}`, 14, y);
-        pdf.text(`Date: ${today}`, W - 14, y, { align: "right" });
-        y += 5;
-        if (formData.age || formData.gender) {
-            pdf.setTextColor("#6b7280"); pdf.setFontSize(9);
-            pdf.text(
-                `${formData.age ? `Age: ${formData.age}` : ""}${formData.age && formData.gender ? " • " : ""}${formData.gender}`,
-                14, y
-            );
-            y += 5;
-        }
-        y += 2; divider();
-
-        // Clinical details
-        if (formData.complaints) { left(`Complaints: ${formData.complaints}`); y += 1; }
-        const vitalsPdf = [
-            formData.vitals.bp && `BP: ${formData.vitals.bp}`,
-            formData.vitals.pulse && `Pulse: ${formData.vitals.pulse}`,
-            formData.vitals.temp && `Temp: ${formData.vitals.temp}`,
-            formData.vitals.weight && `Weight: ${formData.vitals.weight}`,
-        ].filter(Boolean).join(" | ");
-        if (vitalsPdf) { left(`Vitals: ${vitalsPdf}`); y += 1; }
-        if (formData.diagnosis) { left(`Diagnosis: ${formData.diagnosis}`); y += 1; }
-        if (formData.complaints || vitalsPdf || formData.diagnosis) { y += 2; divider(); }
-
-        // Rx symbol + medications
-        pdf.setFontSize(20); pdf.setFont("times", "bold"); pdf.setTextColor("#9ca3af");
-        pdf.text("Rx", 14, y); y += 8;
-        formData.medications.forEach((med, i) => {
-            if (!med.name) return;
-            const parts = [
-                `${i + 1}. ${med.name}`,
-                med.dosage ? `— ${med.dosage}` : "",
-                med.frequency || "",
-                med.duration ? `for ${med.duration}` : "",
-                med.instructions ? `(${med.instructions})` : "",
-            ].filter(Boolean).join("  ");
-            left(parts);
-        });
-        y += 3; divider();
-
-        // Advice & follow-up
-        if (formData.advice) { left(`Advice: ${formData.advice}`); y += 1; }
-        if (formData.followUp) {
-            const d = new Date(formData.followUp).toLocaleDateString("en-IN", {
-                day: "2-digit", month: "short", year: "numeric",
-            });
-            left(`Follow-up: ${d}`);
-        }
-
-        const slug = formData.patientName.replace(/\s+/g, "_") || "prescription";
-        pdf.save(`Rx_${slug}_${new Date().toISOString().slice(0, 10)}.pdf`);
+        html2pdf().set(options).from(element).save();
     };
 
     const today = new Date().toLocaleDateString("en-IN", {
@@ -940,107 +1052,14 @@ export default function NewPrescriptionSheet({
                                     </section>
                                 </>
                             ) : (
-                                /* ── Preview: Rx Paper Pad ── */
-                                <div ref={rxRef} className="bg-white border border-gray-200 rounded-xl shadow-sm p-8 min-h-[500px] font-spline">
-                                    {/* Doctor Header */}
-                                    <div className="text-center border-b border-gray-200 pb-5 mb-5">
-                                        <h3 className="text-lg font-bold text-gray-900">Dr. {doctorName}</h3>
-                                        {doctorLabel && <p className="text-sm text-gray-500">{doctorLabel}</p>}
-                                        <div className="flex items-center justify-center gap-2 mt-2">
-                                            {branding.logo_url && (
-                                                <img 
-                                                    src={branding.logo_url.startsWith('http') ? branding.logo_url : `${API_BASE_URL}${branding.logo_url}`} 
-                                                    alt="Hospital Logo" 
-                                                    className="w-5 h-5 object-contain" 
-                                                />
-                                            )}
-                                            <p className="text-xs font-medium text-gray-400">{branding.name}</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Patient Row */}
-                                    <div className="flex items-center justify-between border-b border-gray-200 pb-4 mb-5 text-sm">
-                                        <div className="space-y-1">
-                                            <p>
-                                                <span className="font-semibold text-gray-700">Patient: </span>
-                                                <span className="text-gray-900">{formData.patientName || "—"}</span>
-                                            </p>
-                                            <p className="text-gray-500">
-                                                {formData.age && `Age: ${formData.age}`}
-                                                {formData.age && formData.gender && " • "}
-                                                {formData.gender}
-                                            </p>
-                                        </div>
-                                        <p className="text-xs text-gray-400">Date: {today}</p>
-                                    </div>
-
-                                    {/* Clinical Details */}
-                                    {(() => {
-                                        const hasVitals = formData.vitals.bp || formData.vitals.pulse || formData.vitals.temp || formData.vitals.weight;
-                                        const vitalsStr = [
-                                            formData.vitals.bp && `BP: ${formData.vitals.bp}`,
-                                            formData.vitals.pulse && `Pulse: ${formData.vitals.pulse}`,
-                                            formData.vitals.temp && `Temp: ${formData.vitals.temp}`,
-                                            formData.vitals.weight && `Weight: ${formData.vitals.weight}`,
-                                        ].filter(Boolean).join(" | ");
-                                        return (formData.complaints || hasVitals || formData.diagnosis) && (
-                                            <div className="space-y-3 mb-6 text-sm">
-                                                {formData.complaints && (
-                                                    <p><span className="font-semibold text-gray-700">C/C: </span>
-                                                        <span className="text-gray-600">{formData.complaints}</span></p>
-                                                )}
-                                                {hasVitals && (
-                                                    <p><span className="font-semibold text-gray-700">Vitals: </span>
-                                                        <span className="text-gray-600">{vitalsStr}</span></p>
-                                                )}
-                                                {formData.diagnosis && (
-                                                    <p><span className="font-semibold text-gray-700">Diagnosis: </span>
-                                                        <span className="text-gray-600">{formData.diagnosis}</span></p>
-                                                )}
-                                            </div>
-                                        );
-                                    })()}
-
-                                    {/* Rx Symbol */}
-                                    <p className="text-2xl font-serif text-gray-400 mb-3">℞</p>
-
-                                    {/* Medication List */}
-                                    <ol className="space-y-2 mb-6">
-                                        {formData.medications.map((med, i) =>
-                                            med.name ? (
-                                                <li key={i} className="text-sm text-gray-800">
-                                                    <span className="font-semibold">{i + 1}. {med.name}</span>
-                                                    {med.dosage && ` — ${med.dosage}`}
-                                                    {med.frequency && <span className="text-gray-500"> • {med.frequency}</span>}
-                                                    {med.duration && <span className="text-gray-500"> for {med.duration}</span>}
-                                                    {med.instructions && <span className="text-gray-400 italic"> ({med.instructions})</span>}
-                                                </li>
-                                            ) : null
-                                        )}
-                                        {formData.medications.every((m) => !m.name) && (
-                                            <li className="text-sm text-gray-400 italic">No medications added yet.</li>
-                                        )}
-                                    </ol>
-
-                                    {/* Footer */}
-                                    {(formData.advice || formData.followUp) && (
-                                        <div className="border-t border-gray-200 pt-4 space-y-2 text-sm">
-                                            {formData.advice && (
-                                                <p><span className="font-semibold text-gray-700">Advice: </span>
-                                                    <span className="text-gray-600">{formData.advice}</span></p>
-                                            )}
-                                            {formData.followUp && (
-                                                <p>
-                                                    <span className="font-semibold text-gray-700">Follow-up: </span>
-                                                    <span className="text-gray-600">
-                                                        {new Date(formData.followUp).toLocaleDateString("en-IN", {
-                                                            day: "2-digit", month: "short", year: "numeric",
-                                                        })}
-                                                    </span>
-                                                </p>
-                                            )}
-                                        </div>
-                                    )}
+                                /* ── Preview: Professional Prescription Template ── */
+                                <div className="flex flex-col gap-4 h-full">
+                                    <PrescriptionPreview
+                                        formData={formData}
+                                        doctorProfile={doctorProfile}
+                                        branding={branding}
+                                        patient={patient}
+                                    />
                                 </div>
                             )}
                         </div>

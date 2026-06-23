@@ -3,12 +3,15 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bell, ChevronDown, FileText, UserPlus } from "lucide-react";
-import NewPrescriptionSheet from "./NewPrescriptionSheet";
+import NewPrescriptionSheet, { type PrescriptionPatient } from "./NewPrescriptionSheet";
+import PrescriptionTypeSheet from "./PrescriptionTypeSheet";
 import AddPatientSheet from "./AddPatientSheet";
 
 export default function Header() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isTypeSheetOpen, setIsTypeSheetOpen] = useState(false);
     const [isPrescriptionSheetOpen, setIsPrescriptionSheetOpen] = useState(false);
+    const [rxPatient, setRxPatient] = useState<PrescriptionPatient | null>(null);
     const [isPatientSheetOpen, setIsPatientSheetOpen] = useState(false);
 
     return (
@@ -51,7 +54,7 @@ export default function Header() {
                                         {/* New Prescription */}
                                         <button
                                             onClick={() => {
-                                                setIsPrescriptionSheetOpen(true);
+                                                setIsTypeSheetOpen(true);
                                                 setIsDropdownOpen(false);
                                             }}
                                             className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
@@ -92,9 +95,27 @@ export default function Header() {
             </header>
 
             {/* ── Slide-Overs ── */}
+            <PrescriptionTypeSheet
+                isOpen={isTypeSheetOpen}
+                onClose={() => setIsTypeSheetOpen(false)}
+                onIndependentPrescription={() => {
+                    setRxPatient(null);
+                    setIsTypeSheetOpen(false);
+                    setIsPrescriptionSheetOpen(true);
+                }}
+                onPatientPrescription={(patient) => {
+                    setRxPatient(patient);
+                    setIsTypeSheetOpen(false);
+                    setIsPrescriptionSheetOpen(true);
+                }}
+            />
             <NewPrescriptionSheet
                 isOpen={isPrescriptionSheetOpen}
-                onClose={() => setIsPrescriptionSheetOpen(false)}
+                onClose={() => {
+                    setIsPrescriptionSheetOpen(false);
+                    setRxPatient(null);
+                }}
+                patient={rxPatient}
             />
             <AddPatientSheet
                 isOpen={isPatientSheetOpen}

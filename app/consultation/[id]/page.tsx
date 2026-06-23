@@ -19,7 +19,7 @@ import {
     useTracks,
 } from "@livekit/components-react";
 import { Track, RoomEvent } from "livekit-client";
-import { startVideoSession, getJoinToken, getAppointment, getPatients, createDoctorNote, getDoctorNotes, type PatientResponse, type AppointmentResponse, type DoctorNoteResponse } from "@/lib/dashboard";
+import { startVideoSession, getJoinToken, getAppointment, getPatients, createDoctorNote, getDoctorNotes, endVideoSession, updateAppointmentStatus, type PatientResponse, type AppointmentResponse, type DoctorNoteResponse } from "@/lib/dashboard";
 
 import PatientProfileSheet from "@/components/dashboard/PatientProfileSheet";
 import NewPrescriptionSheet from "@/components/dashboard/NewPrescriptionSheet";
@@ -75,14 +75,12 @@ export default function ConsultationRoom({ params }: { params: Promise<{ id: str
         let cancelled = false;
         async function connect() {
             try {
-                // Doctor starts the session
                 const session = await startVideoSession(id);
                 if (!cancelled) {
                     setJoinToken(session.join_token);
                     setRoomName(session.room_name);
                 }
             } catch (err: any) {
-                // Check the custom .status property we added in api.ts
                 if (err?.status === 409) {
                     try {
                         const join = await getJoinToken(id);
@@ -599,15 +597,16 @@ function EndCallButton({ router, appointmentId, patientJoinedRef, isPanelOpen }:
     patientJoinedRef: React.MutableRefObject<boolean>;
     isPanelOpen: boolean;
 }) {
-    const { localParticipant } = useLocalParticipant();
-    const handleEnd = useCallback(async () => {
-        try {
-            await localParticipant.setMicrophoneEnabled(false);
-            await localParticipant.setCameraEnabled(false);
-        } catch { /* ignore */ }
-
+    const handleEnd = useCallback(() => {
         router.push("/dashboard");
-    }, [localParticipant, router]);
+
+        setTimeout(async () => {
+            try { await endVideoSession(appointmentId); } catch { /* ignore */ }
+            if (patientJoinedRef.current) {
+                try { await updateAppointmentStatus(appointmentId, "COMPLETED"); } catch { /* ignore */ }
+            }
+        }, 300);
+    }, [router, appointmentId, patientJoinedRef]);
 
     return (
         <button

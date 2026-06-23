@@ -90,9 +90,14 @@ export default function SettingsPage() {
     const specialization = profile?.specialization || "—";
     const licenseNumber = profile?.license_number || null;
     const phone = profile?.phone_number || "—";
-    const fee = profile?.consultation_fee
-        ? `${profile.currency === 'INR' ? '₹' : '$'} ${profile.consultation_fee}`
+    const videoFee = profile?.video_consultation_fee
+        ? `${profile.currency === 'INR' ? '₹' : '$'} ${profile.video_consultation_fee}`
         : "—";
+    const inPersonFee = profile?.in_person_consultation_fee
+        ? `${profile.currency === 'INR' ? '₹' : '$'} ${profile.in_person_consultation_fee}`
+        : "—";
+    const clinicName = profile?.clinic_name || "—";
+    const clinicAddress = profile?.clinic_address || "—";
     const hospital = hospitals.find(h => h.id === me?.hospital_id)?.name || branding.name || "—";
 
     return (
@@ -162,17 +167,30 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-medium text-gray-500 block mb-2">Consultation Fee</label>
+                                    <label className="text-xs font-medium text-gray-500 block mb-2">Video Consultation Fee</label>
                                     <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 font-medium">
-                                        {fee}
+                                        {videoFee}
                                     </div>
                                 </div>
                                 <div>
-                                    <label className="text-xs font-medium text-gray-500 block mb-2">Hospital / Clinic</label>
+                                    <label className="text-xs font-medium text-gray-500 block mb-2">In-Person Fee</label>
                                     <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 font-medium">
-                                        {hospital}
+                                        {inPersonFee}
                                     </div>
                                 </div>
+                                <div>
+                                    <label className="text-xs font-medium text-gray-500 block mb-2">Clinic / Hospital Name</label>
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 font-medium">
+                                        {clinicName}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-medium text-gray-500 block mb-2">Clinic / Hospital Address</label>
+                                    <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-sm text-gray-900 font-medium">
+                                        {clinicAddress}
+                                    </div>
+                                </div>
+
                                 {licenseNumber && (
                                     <div>
                                         <label className="text-xs font-medium text-gray-500 block mb-2">License Number</label>
@@ -201,16 +219,21 @@ export default function SettingsPage() {
                                     <div className="space-y-2">
                                         {profile.availability_slots
                                             .filter((s) => s.is_enabled)
-                                            .map((slot) => (
+                                            .map((slot, idx) => (
                                                 <div
-                                                    key={slot.day_of_week}
+                                                    key={`${slot.day_of_week}-${idx}`}
                                                     className="flex items-center justify-between px-4 py-2.5 rounded-lg bg-gray-50 border border-gray-100"
                                                 >
-                                                    <span className="text-sm font-medium text-gray-900">
-                                                        {slot.day_of_week}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm font-medium text-gray-900">
+                                                            {slot.day_of_week.charAt(0).toUpperCase() + slot.day_of_week.slice(1).toLowerCase()}
+                                                        </span>
+                                                        <span className="text-[10px] font-bold tracking-wider uppercase bg-white border border-gray-200 px-1.5 py-0.5 rounded text-gray-500">
+                                                            {slot.appointment_type === 'IN_PERSON' ? 'In-Person' : 'Video'}
+                                                        </span>
+                                                    </div>
                                                     <span className="text-sm text-gray-500 font-mono">
-                                                        {slot.start_time} — {slot.end_time}
+                                                        {slot.start_time.substring(0, 5)} — {slot.end_time.substring(0, 5)}
                                                     </span>
                                                 </div>
                                             ))}

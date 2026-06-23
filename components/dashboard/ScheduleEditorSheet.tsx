@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-    X, Clock, ChevronUp, ChevronDown, Save, Loader2, CheckCircle,
+    X, Clock, ChevronUp, ChevronDown, Save, Loader2, CheckCircle, Plus
 } from "lucide-react";
 import {
     getDoctorProfile,
@@ -18,12 +18,16 @@ const DAYS = [
     "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday",
 ];
 
-const defaultSlot = (day: string): DoctorAvailabilitySlot => ({
-    day_of_week: day,
-    start_time: "09:00",
-    end_time: "17:00",
-    is_enabled: false,
-});
+interface TimeInterval {
+    startTime: string;
+    endTime: string;
+    type: "VIDEO" | "IN_PERSON";
+}
+
+interface DaySchedule {
+    enabled: boolean;
+    intervals: TimeInterval[];
+}
 
 /* ── Time Spinner ────────────────────────────────────────────────────── */
 
@@ -108,9 +112,7 @@ interface Props {
 }
 
 export default function ScheduleEditorSheet({ isOpen, onClose, onSaved }: Props) {
-    const [slots, setSlots] = useState<DoctorAvailabilitySlot[]>(
-        DAYS.map(defaultSlot)
-    );
+    const [schedule, setSchedule] = useState<Record<string, DaySchedule>>({});
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -124,42 +126,94 @@ export default function ScheduleEditorSheet({ isOpen, onClose, onSaved }: Props)
         setLoading(true);
         getDoctorProfile()
             .then((profile) => {
-                if (profile.availability_slots && profile.availability_slots.length > 0) {
-                    // Merge existing slots with defaults for missing days
-                    const existing = profile.availability_slots;
-                    const merged = DAYS.map((day) => {
-                        const found = existing.find(
-                            (s) => s.day_of_week === day
-                        );
-                        return found ?? defaultSlot(day);
-                    });
-                    setSlots(merged);
-                } else {
-                    setSlots(DAYS.map(defaultSlot));
-                }
+                const initialSchedule: Record<string, DaySchedule> = {};
+                DAYS.forEach(day => {
+                    const daySlots = profile.availability_slots?.filter(s => s.day_of_week.toLowerCase() === day.toLowerCase() && s.is_enabled) || [];
+
+                    if (daySlots.length > 0) {
+                        initialSchedule[day] = {
+                            enabled: true,
+                            intervals: daySlots.map(s => ({
+                                startTime: s.start_time.substring(0, 5),
+                                endTime: s.end_time.substring(0, 5),
+                                type: s.appointment_type as "VIDEO" | "IN_PERSON"
+                            }))
+                        };
+                    } else {
+                        initialSchedule[day] = {
+                            enabled: false,
+                            intervals: [{ startTime: "09:00", endTime: "17:00", type: "VIDEO" }]
+                        };
+                    }
+                });
+                setSchedule(initialSchedule);
             })
-            .catch(() => setSlots(DAYS.map(defaultSlot)))
+            .catch(() => {
+                const initialSchedule: Record<string, DaySchedule> = {};
+                DAYS.forEach(day => {
+                    initialSchedule[day] = {
+                        enabled: false,
+                        intervals: [{ startTime: "09:00", endTime: "17:00", type: "VIDEO" }]
+                    };
+                });
+                setSchedule(initialSchedule);
+            })
             .finally(() => setLoading(false));
     }, [isOpen]);
 
-    const updateSlot = (
-        dayIndex: number,
-        field: keyof DoctorAvailabilitySlot,
-        value: string | boolean
-    ) => {
-        setSlots((prev) => {
-            const next = [...prev];
-            next[dayIndex] = { ...next[dayIndex], [field]: value };
-            return next;
+    const updateDayEnabled = (day: string, enabled: boolean) => {
+        setSchedule(prev => ({ ...prev, [day]: { ...prev[day], enabled } }));
+    }
+
+    const updateInterval = (day: string, index: number, field: keyof TimeInterval, value: string) => {
+        setSchedule(prev => {
+            const newIntervals = [...prev[day].intervals];
+            newIntervals[index] = { ...newIntervals[index], [field]: value };
+            return { ...prev, [day]: { ...prev[day], intervals: newIntervals } };
         });
-    };
+    }
+
+    const addInterval = (day: string) => {
+        setSchedule(prev => ({
+            ...prev,
+            [day]: {
+                ...prev[day],
+                intervals: [...prev[day].intervals, { startTime: "09:00", endTime: "17:00", type: "VIDEO" }]
+            }
+        }));
+    }
+
+    const removeInterval = (day: string, index: number) => {
+        setSchedule(prev => {
+            const newIntervals = [...prev[day].intervals];
+            newIntervals.splice(index, 1);
+            return {
+                ...prev,
+                [day]: { ...prev[day], intervals: newIntervals }
+            };
+        });
+    }
 
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Only send enabled slots to the API
-            const enabledSlots = slots.filter((s) => s.is_enabled);
-            await submitDoctorAvailability(enabledSlots);
+            // Build the slots array
+            const slots: any[] = [];
+            Object.entries(schedule).forEach(([day, v]) => {
+                if (v.enabled) {
+                    v.intervals.forEach((interval) => {
+                        slots.push({
+                            day_of_week: day.toUpperCase(),
+                            start_time: interval.startTime + ":00",
+                            end_time: interval.endTime + ":00",
+                            is_enabled: true,
+                            appointment_type: interval.type,
+                        });
+                    });
+                }
+            });
+
+            await submitDoctorAvailability(slots);
             setSaved(true);
             onSaved?.();
             setTimeout(() => {
@@ -225,60 +279,91 @@ export default function ScheduleEditorSheet({ isOpen, onClose, onSaved }: Props)
                                     Loading schedule…
                                 </div>
                             ) : (
-                                slots.map((slot, i) => (
-                                    <div
-                                        key={slot.day_of_week}
-                                        className={`rounded-xl border transition-all ${
-                                            slot.is_enabled
-                                                ? "border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/[0.02]"
-                                                : "border-gray-200 bg-gray-50/50"
-                                        }`}
-                                    >
-                                        <div className="flex items-center justify-between px-4 py-3">
-                                            {/* Day toggle */}
-                                            <label className="flex items-center gap-3 cursor-pointer select-none">
-                                                <div
-                                                    className={`w-10 h-[22px] rounded-full p-[2px] transition-colors cursor-pointer ${
-                                                        slot.is_enabled
-                                                            ? "bg-[var(--brand-primary)]"
-                                                            : "bg-gray-300"
-                                                    }`}
-                                                    onClick={() => updateSlot(i, "is_enabled", !slot.is_enabled)}
-                                                >
+                                DAYS.map((day) => {
+                                    const sched = schedule[day];
+                                    if (!sched) return null;
+                                    return (
+                                        <div
+                                            key={day}
+                                            className={`rounded-xl border transition-all ${
+                                                sched.enabled
+                                                    ? "border-[var(--brand-primary)]/20 bg-[var(--brand-primary)]/[0.02]"
+                                                    : "border-gray-200 bg-gray-50/50"
+                                            }`}
+                                        >
+                                            <div className="flex items-start justify-between px-4 py-3">
+                                                {/* Day toggle */}
+                                                <label className="flex items-center gap-3 cursor-pointer select-none mt-2">
                                                     <div
-                                                        className={`w-[18px] h-[18px] bg-white rounded-full shadow-sm transition-transform ${
-                                                            slot.is_enabled ? "translate-x-[18px]" : "translate-x-0"
+                                                        className={`w-10 h-[22px] rounded-full p-[2px] transition-colors cursor-pointer ${
+                                                            sched.enabled
+                                                                ? "bg-[var(--brand-primary)]"
+                                                                : "bg-gray-300"
                                                         }`}
-                                                    />
-                                                </div>
-                                                <span
-                                                    className={`text-sm font-medium ${
-                                                        slot.is_enabled
-                                                            ? "text-gray-900"
-                                                            : "text-gray-400"
-                                                    }`}
-                                                >
-                                                    {slot.day_of_week}
-                                                </span>
-                                            </label>
+                                                        onClick={() => updateDayEnabled(day, !sched.enabled)}
+                                                    >
+                                                        <div
+                                                            className={`w-[18px] h-[18px] bg-white rounded-full shadow-sm transition-transform ${
+                                                                sched.enabled ? "translate-x-[18px]" : "translate-x-0"
+                                                            }`}
+                                                        />
+                                                    </div>
+                                                    <span
+                                                        className={`text-sm font-medium w-20 ${
+                                                            sched.enabled
+                                                                ? "text-gray-900"
+                                                                : "text-gray-400"
+                                                        }`}
+                                                    >
+                                                        {day}
+                                                    </span>
+                                                </label>
 
-                                            {/* Time range */}
-                                            <div className="flex items-center gap-2">
-                                                <TimeSpinner
-                                                    value={slot.start_time}
-                                                    disabled={!slot.is_enabled}
-                                                    onChange={(v) => updateSlot(i, "start_time", v)}
-                                                />
-                                                <span className="text-xs text-gray-400 font-medium">to</span>
-                                                <TimeSpinner
-                                                    value={slot.end_time}
-                                                    disabled={!slot.is_enabled}
-                                                    onChange={(v) => updateSlot(i, "end_time", v)}
-                                                />
+                                                {/* Time range intervals */}
+                                                <div className="flex flex-col gap-2 flex-1 items-end">
+                                                    {sched.intervals.map((interval, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2">
+                                                            <TimeSpinner
+                                                                value={interval.startTime}
+                                                                disabled={!sched.enabled}
+                                                                onChange={(v) => updateInterval(day, idx, "startTime", v)}
+                                                            />
+                                                            <span className="text-xs text-gray-400 font-medium">to</span>
+                                                            <TimeSpinner
+                                                                value={interval.endTime}
+                                                                disabled={!sched.enabled}
+                                                                onChange={(v) => updateInterval(day, idx, "endTime", v)}
+                                                            />
+                                                            <select
+                                                                disabled={!sched.enabled}
+                                                                value={interval.type}
+                                                                onChange={(e) => updateInterval(day, idx, "type", e.target.value)}
+                                                                className="ml-1 text-xs border border-gray-200 rounded py-1 px-2 focus:outline-none focus:ring-1 focus:ring-[var(--brand-primary)]/30 disabled:bg-gray-50 disabled:text-gray-400 w-24"
+                                                            >
+                                                                <option value="VIDEO">Video</option>
+                                                                <option value="IN_PERSON">In-Person</option>
+                                                            </select>
+                                                            
+                                                            {/* Add / Remove buttons */}
+                                                            <div className="flex items-center gap-1 ml-1 w-12">
+                                                                {sched.enabled && sched.intervals.length > 1 && (
+                                                                    <button type="button" onClick={() => removeInterval(day, idx)} className="text-gray-400 hover:text-red-500 p-1 transition-colors cursor-pointer" title="Remove shift">
+                                                                        <X size={14} />
+                                                                    </button>
+                                                                )}
+                                                                {sched.enabled && idx === sched.intervals.length - 1 && (
+                                                                    <button type="button" onClick={() => addInterval(day)} className="text-gray-400 hover:text-[var(--brand-primary)] p-1 transition-colors cursor-pointer" title="Add another shift">
+                                                                        <Plus size={14} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))
+                                    );
+                                })
                             )}
                         </div>
 

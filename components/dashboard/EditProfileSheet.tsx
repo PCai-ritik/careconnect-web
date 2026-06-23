@@ -19,7 +19,10 @@ interface FormFields {
     phone: string;
     licenseNumber: string;
     bio: string;
-    consultationFee: string;
+    clinicName: string;
+    clinicAddress: string;
+    videoConsultationFee: string;
+    inPersonConsultationFee: string;
 }
 
 const emptyForm: FormFields = {
@@ -29,7 +32,10 @@ const emptyForm: FormFields = {
     phone: "",
     licenseNumber: "",
     bio: "",
-    consultationFee: "",
+    clinicName: "",
+    clinicAddress: "",
+    videoConsultationFee: "",
+    inPersonConsultationFee: "",
 };
 
 export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfileSheetProps) {
@@ -54,7 +60,10 @@ export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfi
                     phone: p.phone_number || "",
                     licenseNumber: p.license_number || "",
                     bio: p.bio || "",
-                    consultationFee: p.consultation_fee ? String(p.consultation_fee) : "",
+                    clinicName: p.clinic_name || "",
+                    clinicAddress: p.clinic_address || "",
+                    videoConsultationFee: p.video_consultation_fee ? String(p.video_consultation_fee) : "",
+                    inPersonConsultationFee: p.in_person_consultation_fee ? String(p.in_person_consultation_fee) : "",
                 });
             })
             .catch(() => { })
@@ -74,7 +83,10 @@ export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfi
                 phone_number: formData.phone || undefined,
                 license_number: formData.licenseNumber || undefined,
                 bio: formData.bio || undefined,
-                consultation_fee: formData.consultationFee ? parseFloat(formData.consultationFee) : undefined,
+                clinic_name: formData.clinicName || undefined,
+                clinic_address: formData.clinicAddress || undefined,
+                video_consultation_fee: formData.videoConsultationFee ? parseFloat(formData.videoConsultationFee) : undefined,
+                in_person_consultation_fee: formData.inPersonConsultationFee ? parseFloat(formData.inPersonConsultationFee) : undefined,
             });
             setShowSuccess(true);
             onSaved?.();
@@ -94,7 +106,10 @@ export default function EditProfileSheet({ isOpen, onClose, onSaved }: EditProfi
         { key: "specialization" as const, label: "Specialization", icon: Stethoscope, type: "text", placeholder: "e.g. Cardiologist" },
         { key: "phone" as const, label: "Phone / WhatsApp", icon: Phone, type: "tel", placeholder: "+91 XXXXX XXXXX" },
         { key: "licenseNumber" as const, label: "License / Registration No.", icon: FileText, type: "text", placeholder: "e.g. NMC-78291" },
-        { key: "consultationFee" as const, label: "Consultation Fee (₹)", icon: CreditCard, type: "number", placeholder: "e.g. 500" },
+        { key: "clinicName" as const, label: "Clinic / Hospital Name", icon: Stethoscope, type: "text", placeholder: "e.g. Apollo Clinic" },
+        { key: "clinicAddress" as const, label: "Clinic / Hospital Address", icon: MapPin, type: "text", placeholder: "e.g. 123 Main St, City" },
+        { key: "videoConsultationFee" as const, label: "Video Consultation Fee (₹)", icon: CreditCard, type: "number", placeholder: "e.g. 800" },
+        { key: "inPersonConsultationFee" as const, label: "In-Person Consultation Fee (₹)", icon: CreditCard, type: "number", placeholder: "e.g. 1000" },
     ];
 
     return (

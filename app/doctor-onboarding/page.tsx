@@ -8,7 +8,7 @@ import {
     Activity, ChevronDown, ChevronUp, Upload, CheckCircle,
     Shield, Calendar, CreditCard, Check, ArrowLeft, ArrowRight,
     Clock, Globe, Award, Smartphone, Square, CheckSquare,
-    User, FileText, Loader2,
+    User, FileText, Loader2, Plus, X
 } from "lucide-react";
 
 /* ─────────────────────── Constants ─────────────────────── */
@@ -58,22 +58,28 @@ const PAYMENT_METHODS = [
 
 const STEPS = [
     { title: "Personal Profile", icon: User, description: "Professional verification & identity" },
-    { title: "Credentials", icon: FileText, description: "Availability & schedule setup" },
+    { title: "Video Consultation", icon: FileText, description: "Availability & schedule setup" },
+    { title: "In-Person Appointments", icon: Calendar, description: "Clinic availability" },
     { title: "Practice Details", icon: CreditCard, description: "Payments, billing & consent" },
 ];
 
 const STEP_CONTEXT = [
     "Your personal details are kept strictly secure and encrypted. We only use this information to verify your medical credentials.",
-    "We verify credentials to maintain our platform's standard of care. Your schedule will be visible to patients booking consultations.",
+    "Set your availability for virtual video consultations. Your schedule will be visible to patients booking online.",
+    "Set your availability for in-person clinic visits. If you do not accept in-person appointments, simply turn the toggle off.",
     "This information will be visible to your future patients. Payment details are secured with bank-level encryption.",
 ];
 
 /* ─────────────────────── Types ─────────────────────── */
 
-interface DaySchedule {
-    enabled: boolean;
+interface TimeInterval {
     startTime: string;
     endTime: string;
+}
+
+interface DaySchedule {
+    enabled: boolean;
+    intervals: TimeInterval[];
 }
 
 interface FormData {
@@ -88,7 +94,12 @@ interface FormData {
     consultationDuration: string;
     timezone: string;
     schedule: Record<string, DaySchedule>;
-    consultationFee: string;
+    acceptsInPerson: boolean;
+    inPersonSchedule: Record<string, DaySchedule>;
+    clinicName: string;
+    clinicAddress: string;
+    videoConsultationFee: string;
+    inPersonConsultationFee: string;
     currency: string;
     bankName: string;
     accountNumber: string;
@@ -99,12 +110,16 @@ interface FormData {
     privacyAccepted: boolean;
 }
 
+interface DaySchedule {
+    enabled: boolean;
+    intervals: TimeInterval[];
+}
+
 const defaultSchedule: Record<string, DaySchedule> = DAYS.reduce((acc, day) => ({
     ...acc,
     [day]: {
         enabled: day !== "Saturday" && day !== "Sunday",
-        startTime: "09:00",
-        endTime: "17:00",
+        intervals: [{ startTime: "09:00", endTime: "17:00" }],
     },
 }), {} as Record<string, DaySchedule>);
 
@@ -173,11 +188,16 @@ export default function DoctorOnboardingPage() {
         licenseState: "",
         phoneNumber: "",
         bio: "",
+        clinicName: "",
+        clinicAddress: "",
         documentUploaded: false,
         consultationDuration: "30 min",
         timezone: "Asia/Kolkata (IST, UTC+5:30)",
         schedule: { ...defaultSchedule },
-        consultationFee: "",
+        acceptsInPerson: true,
+        inPersonSchedule: { ...defaultSchedule },
+        videoConsultationFee: "",
+        inPersonConsultationFee: "",
         currency: "INR",
         bankName: "",
         accountNumber: "",
@@ -240,40 +260,75 @@ export default function DoctorOnboardingPage() {
         s.toLowerCase().includes(specSearch.toLowerCase())
     );
 
-    const toggleDay = (day: string) => {
+    const toggleDay = (day: string, target: "schedule" | "inPersonSchedule" = "schedule") => {
         setFormData((prev) => ({
             ...prev,
-            schedule: {
-                ...prev.schedule,
-                [day]: { ...prev.schedule[day], enabled: !prev.schedule[day].enabled },
+            [target]: {
+                ...prev[target],
+                [day]: { ...prev[target][day], enabled: !prev[target][day].enabled },
             },
         }));
     };
 
-    const cycleHour = (day: string, field: "startTime" | "endTime", direction: number) => {
+    const cycleHour = (day: string, index: number, field: "startTime" | "endTime", direction: number, target: "schedule" | "inPersonSchedule" = "schedule") => {
         setFormData((prev) => {
-            const current = prev.schedule[day][field];
+            const current = prev[target][day].intervals[index][field];
             let [h, m] = current.split(":");
             let hour = parseInt(h);
             hour = (hour + direction + 24) % 24;
             const next = `${hour.toString().padStart(2, '0')}:${m}`;
+
+            const newIntervals = [...prev[target][day].intervals];
+            newIntervals[index] = { ...newIntervals[index], [field]: next };
+
             return {
                 ...prev,
-                schedule: { ...prev.schedule, [day]: { ...prev.schedule[day], [field]: next } },
+                [target]: { ...prev[target], [day]: { ...prev[target][day], intervals: newIntervals } },
             };
         });
     };
 
-    const cycleMinute = (day: string, field: "startTime" | "endTime", direction: number) => {
+    const cycleMinute = (day: string, index: number, field: "startTime" | "endTime", direction: number, target: "schedule" | "inPersonSchedule" = "schedule") => {
         setFormData((prev) => {
-            const current = prev.schedule[day][field];
+            const current = prev[target][day].intervals[index][field];
             let [h, m] = current.split(":");
             let minute = parseInt(m);
             minute = (minute + direction * 15 + 60) % 60;
             const next = `${h}:${minute.toString().padStart(2, '0')}`;
+
+            const newIntervals = [...prev[target][day].intervals];
+            newIntervals[index] = { ...newIntervals[index], [field]: next };
+
             return {
                 ...prev,
-                schedule: { ...prev.schedule, [day]: { ...prev.schedule[day], [field]: next } },
+                [target]: { ...prev[target], [day]: { ...prev[target][day], intervals: newIntervals } },
+            };
+        });
+    };
+
+    const addInterval = (day: string, target: "schedule" | "inPersonSchedule" = "schedule") => {
+        setFormData((prev) => ({
+            ...prev,
+            [target]: {
+                ...prev[target],
+                [day]: {
+                    ...prev[target][day],
+                    intervals: [...prev[target][day].intervals, { startTime: "09:00", endTime: "17:00" }]
+                }
+            }
+        }));
+    };
+
+    const removeInterval = (day: string, index: number, target: "schedule" | "inPersonSchedule" = "schedule") => {
+        setFormData((prev) => {
+            const newIntervals = [...prev[target][day].intervals];
+            newIntervals.splice(index, 1);
+            return {
+                ...prev,
+                [target]: {
+                    ...prev[target],
+                    [day]: { ...prev[target][day], intervals: newIntervals }
+                }
             };
         });
     };
@@ -303,23 +358,49 @@ export default function DoctorOnboardingPage() {
                 license_number: formData.licenseNumber,
                 phone_number: formData.phoneNumber || undefined,
                 bio: formData.bio,
+                clinic_name: formData.clinicName || undefined,
+                clinic_address: formData.clinicAddress || undefined,
                 consultation_duration_minutes: durationMap[formData.consultationDuration] || 30,
-                consultation_fee: parseFloat(formData.consultationFee) || undefined,
+                video_consultation_fee: parseFloat(formData.videoConsultationFee) || undefined,
+                in_person_consultation_fee: parseFloat(formData.inPersonConsultationFee) || undefined,
                 currency: formData.currency,
                 accepted_payment_methods: formData.acceptedPaymentMethods,
             });
 
             // 2. Submit availability slots
-            const slots = Object.entries(formData.schedule)
-                .filter(([, v]) => v.enabled)
-                .map(([day, v]) => ({
-                    day_of_week: day,
-                    start_time: v.startTime,
-                    end_time: v.endTime,
-                    is_enabled: true,
-                }));
+            let slots: any[] = [];
+            Object.entries(formData.schedule).forEach(([day, v]) => {
+                if (v.enabled) {
+                    v.intervals.forEach((interval) => {
+                        slots.push({
+                            day_of_week: day.toUpperCase(),
+                            start_time: interval.startTime + ":00",
+                            end_time: interval.endTime + ":00",
+                            is_enabled: true,
+                            appointment_type: "VIDEO",
+                        });
+                    });
+                }
+            });
+
+            if (formData.acceptsInPerson) {
+                Object.entries(formData.inPersonSchedule).forEach(([day, v]) => {
+                    if (v.enabled) {
+                        v.intervals.forEach((interval) => {
+                            slots.push({
+                                day_of_week: day.toUpperCase(),
+                                start_time: interval.startTime + ":00",
+                                end_time: interval.endTime + ":00",
+                                is_enabled: true,
+                                appointment_type: "IN_PERSON",
+                            });
+                        });
+                    }
+                });
+            }
+
             if (slots.length > 0) {
-                await submitDoctorAvailability(slots);
+                await submitDoctorAvailability(slots as any);
             }
 
             setIsSubmitting(false);
@@ -474,17 +555,19 @@ export default function DoctorOnboardingPage() {
                         <div>
                             <h1 className="text-2xl font-bold text-gray-900">
                                 {step === 1 && "Professional Verification"}
-                                {step === 2 && "Set Your Availability"}
-                                {step === 3 && "Payments & Consent"}
+                                {step === 2 && "Video Consultation Setup"}
+                                {step === 3 && "In-Person Appointments"}
+                                {step === 4 && "Payments & Consent"}
                             </h1>
                             <p className="text-sm text-gray-400 mt-1">
                                 {step === 1 && "Verify your medical credentials and identity"}
-                                {step === 2 && "Configure your consultation schedule"}
-                                {step === 3 && "Set your fees and accept agreements"}
+                                {step === 2 && "Configure your video consultation schedule"}
+                                {step === 3 && "Set availability for in-person clinic visits"}
+                                {step === 4 && "Set your fees and accept agreements"}
                             </p>
                         </div>
                         <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
-                            {step} of 3
+                            {step} of 4
                         </span>
                     </div>
 
@@ -636,6 +719,24 @@ export default function DoctorOnboardingPage() {
                                             className={`${inputClass} resize-none`}
                                         />
                                     </div>
+
+                                    {/* Clinic Details */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[11px] font-semibold tracking-[1.5px] text-gray-400 mb-2 uppercase">
+                                                Clinic / Hospital Name
+                                            </label>
+                                            <input type="text" placeholder="e.g. Apollo Clinic" value={formData.clinicName}
+                                                onChange={(e) => update("clinicName", e.target.value)} className={inputClass} />
+                                        </div>
+                                        <div>
+                                            <label className="block text-[11px] font-semibold tracking-[1.5px] text-gray-400 mb-2 uppercase">
+                                                Clinic / Hospital Address
+                                            </label>
+                                            <input type="text" placeholder="e.g. 123 Main St, City" value={formData.clinicAddress}
+                                                onChange={(e) => update("clinicAddress", e.target.value)} className={inputClass} />
+                                        </div>
+                                    </div>
                                 </motion.div>
                             )}
 
@@ -677,34 +778,53 @@ export default function DoctorOnboardingPage() {
                                                         <span className={`text-sm w-24 font-medium ${sched.enabled ? "text-gray-900" : "text-gray-400"}`}>{day}</span>
                                                         {sched.enabled && (
                                                             <div className="flex items-center gap-2 ml-auto">
-                                                                <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-0.5 shadow-sm">
-                                                                    <div className="flex flex-col items-center">
-                                                                        <button type="button" onClick={() => cycleHour(day, "startTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
-                                                                        <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{sched.startTime.split(':')[0]}</span>
-                                                                        <button type="button" onClick={() => cycleHour(day, "startTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
-                                                                    </div>
-                                                                    <span className="text-xs font-bold text-gray-400 pb-0.5">:</span>
-                                                                    <div className="flex flex-col items-center">
-                                                                        <button type="button" onClick={() => cycleMinute(day, "startTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
-                                                                        <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{sched.startTime.split(':')[1]}</span>
-                                                                        <button type="button" onClick={() => cycleMinute(day, "startTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
-                                                                    </div>
-                                                                </div>
+                                                                <div className="flex flex-col gap-2 ml-auto w-full max-w-[340px]">
+                                                                    {sched.intervals.map((interval, idx) => (
+                                                                        <div key={idx} className="flex items-center gap-2">
+                                                                            <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-0.5 shadow-sm">
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <button type="button" onClick={() => cycleHour(day, idx, "startTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                                    <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{interval.startTime.split(':')[0]}</span>
+                                                                                    <button type="button" onClick={() => cycleHour(day, idx, "startTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                                </div>
+                                                                                <span className="text-xs font-bold text-gray-400 pb-0.5">:</span>
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <button type="button" onClick={() => cycleMinute(day, idx, "startTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                                    <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{interval.startTime.split(':')[1]}</span>
+                                                                                    <button type="button" onClick={() => cycleMinute(day, idx, "startTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                                </div>
+                                                                            </div>
 
-                                                                <span className="text-xs text-gray-400">to</span>
+                                                                            <span className="text-xs text-gray-400">to</span>
 
-                                                                <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-0.5 shadow-sm">
-                                                                    <div className="flex flex-col items-center">
-                                                                        <button type="button" onClick={() => cycleHour(day, "endTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
-                                                                        <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{sched.endTime.split(':')[0]}</span>
-                                                                        <button type="button" onClick={() => cycleHour(day, "endTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
-                                                                    </div>
-                                                                    <span className="text-xs font-bold text-gray-400 pb-0.5">:</span>
-                                                                    <div className="flex flex-col items-center">
-                                                                        <button type="button" onClick={() => cycleMinute(day, "endTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
-                                                                        <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{sched.endTime.split(':')[1]}</span>
-                                                                        <button type="button" onClick={() => cycleMinute(day, "endTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
-                                                                    </div>
+                                                                            <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-0.5 shadow-sm">
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <button type="button" onClick={() => cycleHour(day, idx, "endTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                                    <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{interval.endTime.split(':')[0]}</span>
+                                                                                    <button type="button" onClick={() => cycleHour(day, idx, "endTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                                </div>
+                                                                                <span className="text-xs font-bold text-gray-400 pb-0.5">:</span>
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <button type="button" onClick={() => cycleMinute(day, idx, "endTime", 1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                                    <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{interval.endTime.split(':')[1]}</span>
+                                                                                    <button type="button" onClick={() => cycleMinute(day, idx, "endTime", -1)} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="flex items-center gap-1 ml-1">
+                                                                                {sched.intervals.length > 1 && (
+                                                                                    <button type="button" onClick={() => removeInterval(day, idx)} className="text-gray-400 hover:text-red-500 p-1 transition-colors cursor-pointer" title="Remove shift">
+                                                                                        <X size={14} />
+                                                                                    </button>
+                                                                                )}
+                                                                                {idx === sched.intervals.length - 1 && (
+                                                                                    <button type="button" onClick={() => addInterval(day)} className="text-gray-400 hover:text-[var(--brand-primary)] p-1 transition-colors cursor-pointer" title="Add another shift">
+                                                                                        <Plus size={14} />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
                                                                 </div>
                                                             </div>
                                                         )}
@@ -716,7 +836,7 @@ export default function DoctorOnboardingPage() {
                                 </motion.div>
                             )}
 
-                            {/* ═══════════════ STEP 3: Practice Details / Payments ═══════════════ */}
+                            {/* ═══════════════ STEP 3: In-Person Appointments ═══════════════ */}
                             {step === 3 && (
                                 <motion.div
                                     key="step3"
@@ -726,33 +846,146 @@ export default function DoctorOnboardingPage() {
                                     transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
                                     className="space-y-6"
                                 >
-                                    {/* Consultation Fee + Currency */}
-                                    <div>
-                                        <label className="block text-[11px] font-semibold tracking-[1.5px] text-gray-400 mb-2 uppercase">
-                                            Base Consultation Fee <span className="text-red-400">*</span>
+                                    <div className="flex items-center justify-between bg-[var(--brand-primary)]/5 border border-[var(--brand-primary)]/20 rounded-xl p-4">
+                                        <div>
+                                            <p className="text-sm font-semibold text-gray-900">Accept In-Person Appointments</p>
+                                            <p className="text-xs text-gray-500 mt-1">Enable this to allow patients to book clinic visits with you.</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            role="switch"
+                                            aria-checked={formData.acceptsInPerson}
+                                            onClick={() => update("acceptsInPerson", !formData.acceptsInPerson)}
+                                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--brand-primary)] focus:ring-offset-2 ${formData.acceptsInPerson ? 'bg-[var(--brand-primary)]' : 'bg-gray-200'}`}
+                                        >
+                                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.acceptsInPerson ? 'translate-x-6' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+
+                                    <div className={`transition-opacity duration-300 ${!formData.acceptsInPerson ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <label className="block text-[11px] font-semibold tracking-[1.5px] text-gray-400 mb-3 uppercase">
+                                            In-Person Schedule
                                         </label>
-                                        <div className="flex gap-2">
-                                            <div className="relative">
-                                                <button type="button" onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
-                                                    className="h-[50px] px-4 bg-gray-50 rounded-xl flex items-center gap-1.5 text-sm font-semibold text-[var(--brand-primary)] cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200 shadow-sm">
-                                                    {CURRENCY_OPTIONS.find((c) => c.code === formData.currency)?.label.charAt(0)} {formData.currency}
-                                                    <ChevronDown size={12} className={`transition-transform duration-200 ${showCurrencyDropdown ? "rotate-180" : ""}`} />
-                                                </button>
-                                                {showCurrencyDropdown && (
-                                                    <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 min-w-[200px]">
-                                                        {CURRENCY_OPTIONS.map((opt) => (
-                                                            <button key={opt.code} type="button"
-                                                                onClick={() => { update("currency", opt.code); setShowCurrencyDropdown(false); }}
-                                                                className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition-colors ${formData.currency === opt.code ? "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
-                                                                {opt.label}
-                                                            </button>
-                                                        ))}
+                                        <div className="bg-gray-50/80 rounded-xl border border-gray-100 p-4 space-y-1">
+                                            {DAYS.map((day) => {
+                                                const sched = formData.inPersonSchedule[day];
+                                                return (
+                                                    <div key={day} className="flex items-center gap-3 py-1.5">
+                                                        <button type="button" onClick={() => toggleDay(day, "inPersonSchedule")}
+                                                            className={`w-5 h-5 rounded flex-shrink-0 flex items-center justify-center transition-colors cursor-pointer ${sched.enabled ? "bg-[var(--brand-primary)]" : "bg-gray-200"}`}>
+                                                            {sched.enabled && <Check size={12} className="text-white" />}
+                                                        </button>
+                                                        <span className={`text-sm w-24 font-medium ${sched.enabled ? "text-gray-900" : "text-gray-400"}`}>{day}</span>
+                                                        {sched.enabled && (
+                                                            <div className="flex items-center gap-2 ml-auto">
+                                                                <div className="flex flex-col gap-2 ml-auto w-full max-w-[340px]">
+                                                                    {sched.intervals.map((interval, idx) => (
+                                                                        <div key={idx} className="flex items-center gap-2">
+                                                                            <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-0.5 shadow-sm">
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <button type="button" onClick={() => cycleHour(day, idx, "startTime", 1, "inPersonSchedule")} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                                    <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{interval.startTime.split(':')[0]}</span>
+                                                                                    <button type="button" onClick={() => cycleHour(day, idx, "startTime", -1, "inPersonSchedule")} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                                </div>
+                                                                                <span className="text-xs font-bold text-gray-400 pb-0.5">:</span>
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <button type="button" onClick={() => cycleMinute(day, idx, "startTime", 1, "inPersonSchedule")} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                                    <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{interval.startTime.split(':')[1]}</span>
+                                                                                    <button type="button" onClick={() => cycleMinute(day, idx, "startTime", -1, "inPersonSchedule")} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <span className="text-xs text-gray-400">to</span>
+
+                                                                            <div className="flex items-center gap-1 bg-white rounded-lg border border-gray-200 px-2 py-0.5 shadow-sm">
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <button type="button" onClick={() => cycleHour(day, idx, "endTime", 1, "inPersonSchedule")} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                                    <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{interval.endTime.split(':')[0]}</span>
+                                                                                    <button type="button" onClick={() => cycleHour(day, idx, "endTime", -1, "inPersonSchedule")} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                                </div>
+                                                                                <span className="text-xs font-bold text-gray-400 pb-0.5">:</span>
+                                                                                <div className="flex flex-col items-center">
+                                                                                    <button type="button" onClick={() => cycleMinute(day, idx, "endTime", 1, "inPersonSchedule")} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronUp size={12} /></button>
+                                                                                    <span className="text-xs font-semibold text-gray-700 w-4 text-center leading-none">{interval.endTime.split(':')[1]}</span>
+                                                                                    <button type="button" onClick={() => cycleMinute(day, idx, "endTime", -1, "inPersonSchedule")} className="text-gray-400 hover:text-gray-600 p-0.5 leading-none cursor-pointer"><ChevronDown size={12} /></button>
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div className="flex items-center gap-1 ml-1">
+                                                                                {sched.intervals.length > 1 && (
+                                                                                    <button type="button" onClick={() => removeInterval(day, idx, "inPersonSchedule")} className="text-gray-400 hover:text-red-500 p-1 transition-colors cursor-pointer" title="Remove shift">
+                                                                                        <X size={14} />
+                                                                                    </button>
+                                                                                )}
+                                                                                {idx === sched.intervals.length - 1 && (
+                                                                                    <button type="button" onClick={() => addInterval(day, "inPersonSchedule")} className="text-gray-400 hover:text-[var(--brand-primary)] p-1 transition-colors cursor-pointer" title="Add another shift">
+                                                                                        <Plus size={14} />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                )}
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* ═══════════════ STEP 4: Practice Details / Payments ═══════════════ */}
+                            {step === 4 && (
+                                <motion.div
+                                    key="step3"
+                                    initial={{ opacity: 0, y: 15 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -15 }}
+                                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                                    className="space-y-6"
+                                >
+                                    {/* Consultation Fees + Currency */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-[11px] font-semibold tracking-[1.5px] text-gray-400 mb-2 uppercase">
+                                                Video Consultation Fee <span className="text-red-400">*</span>
+                                            </label>
+                                            <div className="flex gap-2">
+                                                <div className="relative">
+                                                    <button type="button" onClick={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
+                                                        className="h-[50px] px-4 bg-gray-50 rounded-xl flex items-center gap-1.5 text-sm font-semibold text-[var(--brand-primary)] cursor-pointer hover:bg-gray-100 transition-colors border border-gray-200 shadow-sm">
+                                                        {CURRENCY_OPTIONS.find((c) => c.code === formData.currency)?.label.charAt(0)} {formData.currency}
+                                                        <ChevronDown size={12} className={`transition-transform duration-200 ${showCurrencyDropdown ? "rotate-180" : ""}`} />
+                                                    </button>
+                                                    {showCurrencyDropdown && (
+                                                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 min-w-[200px]">
+                                                            {CURRENCY_OPTIONS.map((opt) => (
+                                                                <button key={opt.code} type="button"
+                                                                    onClick={() => { update("currency", opt.code); setShowCurrencyDropdown(false); }}
+                                                                    className={`w-full text-left px-4 py-2.5 text-sm cursor-pointer transition-colors ${formData.currency === opt.code ? "bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] font-medium" : "text-gray-700 hover:bg-gray-50"}`}>
+                                                                    {opt.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <input type="number" placeholder="e.g. 800" value={formData.videoConsultationFee}
+                                                    onChange={(e) => update("videoConsultationFee", e.target.value)}
+                                                    className={`flex-1 ${inputClass}`} />
                                             </div>
-                                            <input type="number" placeholder="e.g. 800" value={formData.consultationFee}
-                                                onChange={(e) => update("consultationFee", e.target.value)}
-                                                className={`flex-1 ${inputClass}`} />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-[11px] font-semibold tracking-[1.5px] text-gray-400 mb-2 uppercase">
+                                                In-Person Consultation Fee
+                                            </label>
+                                            <div className="flex gap-2">
+                                                <input type="number" placeholder="e.g. 1000" value={formData.inPersonConsultationFee}
+                                                    onChange={(e) => update("inPersonConsultationFee", e.target.value)}
+                                                    className={`flex-1 ${inputClass}`} />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -867,7 +1100,7 @@ export default function DoctorOnboardingPage() {
                             <div />
                         )}
 
-                        {step < 3 ? (
+                        {step < 4 ? (
                             <button
                                 type="button"
                                 onClick={() => setStep(step + 1)}

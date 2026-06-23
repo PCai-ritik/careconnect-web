@@ -14,6 +14,7 @@ import {
     Share2,
     CalendarOff,
     FileText,
+    AlertTriangle,
 } from "lucide-react";
 import PatientProfileSheet from "@/components/dashboard/PatientProfileSheet";
 import NewPrescriptionSheet from "@/components/dashboard/NewPrescriptionSheet";
@@ -148,16 +149,18 @@ export default function DashboardHomePage() {
     const patientMap = new Map(patients.map(p => [p.id, p.full_name]));
     const scheduleRows = todayAppointments.slice(0, 5).map(a => ({
         id: a.id,
+        patientId: a.patient_id,
         name: patientMap.get(a.patient_id) ?? 'Unknown Patient',
         condition: a.reason || a.appointment_type.replace('_', ' '),
         time: formatAppointmentTime(a.scheduled_time, a.appointment_type),
         rawStatus: a.status,
         duration: a.duration_minutes || 30,
         scheduledTime: a.scheduled_time,
+        type: a.appointment_type,
     }));
 
     const recentSummaries = appointments
-        .filter(a => a.status === 'COMPLETED')
+        .filter(a => a.status === 'COMPLETED' && a.appointment_type === 'VIDEO')
         .sort((a, b) => new Date(b.scheduled_time).getTime() - new Date(a.scheduled_time).getTime())
         .slice(0, 3)
         .map(a => ({
@@ -185,9 +188,11 @@ export default function DashboardHomePage() {
 
     const nextAppointmentDisplay = nextUpcoming ? {
         id: nextUpcoming.id,
+        patient_id: nextUpcoming.patient_id,
         name: patientMap.get(nextUpcoming.patient_id) ?? 'Unknown Patient',
         time: formatAppointmentTime(nextUpcoming.scheduled_time, nextUpcoming.appointment_type),
         timeUntil: getTimeUntilLabel(nextUpcoming.scheduled_time),
+        type: nextUpcoming.appointment_type,
     } : null;
 
     const stats = [
@@ -258,8 +263,11 @@ export default function DashboardHomePage() {
                                     className="flex items-center gap-4 text-left group cursor-pointer"
                                 >
                                     <div>
-                                        <span className="text-xs font-bold tracking-wider text-[var(--brand-primary)] uppercase mb-1 block">
-                                            Next Appointment • {nextAppointmentDisplay.timeUntil}
+                                        <span className="text-xs font-bold tracking-wider text-[var(--brand-primary)] uppercase block">
+                                            Next Appointment
+                                        </span>
+                                        <span className="text-xs font-bold tracking-wider text-[var(--brand-primary)]/70 uppercase mb-2 block">
+                                            {nextAppointmentDisplay.timeUntil}
                                         </span>
                                     </div>
                                     <div className="w-12 h-12 rounded-full flex items-center justify-center bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
@@ -273,16 +281,26 @@ export default function DashboardHomePage() {
                                     </div>
                                 </Link>
 
-                                {/* Right Side — Start Call + Share */}
+                                {/* Right Side — Action Button */}
                                 <div className="flex items-center gap-2">
                                     <ShareButton appointmentId={nextAppointmentDisplay.id} patientName={nextAppointmentDisplay.name} brandName={branding.name} />
-                                    <Link
-                                        href={`/consultation/${nextAppointmentDisplay.id}`}
-                                        className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-[0.98] cursor-pointer"
-                                    >
-                                        <Video size={18} />
-                                        Start Call
-                                    </Link>
+                                    {nextAppointmentDisplay.type === 'VIDEO' ? (
+                                        <Link
+                                            href={`/consultation/${nextAppointmentDisplay.id}`}
+                                            className="bg-[var(--brand-primary)] hover:bg-[var(--brand-primary-hover)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-[0.98] cursor-pointer"
+                                        >
+                                            <Video size={18} />
+                                            Start Call
+                                        </Link>
+                                    ) : (
+                                        <button
+                                            onClick={() => openSheet(nextAppointmentDisplay.patient_id)}
+                                            className="bg-emerald-600 hover:bg-emerald-700 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 text-white px-5 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-[0.98] cursor-pointer"
+                                        >
+                                            <CalendarCheck size={18} />
+                                            In-Person Visit
+                                        </button>
+                                    )}
                                 </div>
                             </>
                         ) : (
@@ -318,24 +336,62 @@ export default function DashboardHomePage() {
                                         className="px-6 py-4 border-b border-dashed border-gray-200 last:border-0 flex items-center justify-between hover:bg-gray-50 transition-colors group"
                                     >
                                         {/* Left — clickable patient info */}
-                                        <Link
-                                            href={`/consultation/${row.id}`}
-                                            className="flex items-center gap-3 text-left cursor-pointer"
-                                        >
-                                            <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
-                                                <User size={18} />
-                                            </div>
-                                            <div>
-                                                <p className="text-sm font-medium text-gray-900 hover:text-[var(--brand-primary)] transition-colors">{row.name}</p>
-                                                <p className="text-xs text-gray-500 mt-0.5">{row.time}</p>
-                                            </div>
-                                        </Link>
+                                        {/* Left — clickable patient info */}
+                                        {(() => {
+                                            const isProcessing = row.rawStatus === 'IN_PROGRESS' && (new Date(row.scheduledTime).getTime() + row.duration * 60000) < Date.now();
+                                            const isOver = row.rawStatus === 'COMPLETED' || row.rawStatus === 'CANCELLED' || row.rawStatus === 'NO_SHOW' || isProcessing;
+                                            
+                                            const innerContent = (
+                                                <>
+                                                    <div className="w-10 h-10 rounded-full flex items-center justify-center bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+                                                        <User size={18} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-gray-900 hover:text-[var(--brand-primary)] transition-colors">{row.name}</p>
+                                                        <p className="text-xs text-gray-500 mt-0.5">{row.time}</p>
+                                                    </div>
+                                                </>
+                                            );
+
+                                            if (isOver) {
+                                                return (
+                                                    <button
+                                                        onClick={() => openSheet(row.patientId)}
+                                                        className="flex items-center gap-3 text-left cursor-pointer"
+                                                    >
+                                                        {innerContent}
+                                                    </button>
+                                                );
+                                            }
+
+                                            if (row.type === 'IN_PERSON') {
+                                                return (
+                                                    <button
+                                                        onClick={() => openSheet(row.patientId)}
+                                                        className="flex items-center gap-3 text-left cursor-pointer"
+                                                    >
+                                                        {innerContent}
+                                                    </button>
+                                                );
+                                            }
+
+                                            return (
+                                                <Link
+                                                    href={`/consultation/${row.id}`}
+                                                    className="flex items-center gap-3 text-left cursor-pointer"
+                                                >
+                                                    {innerContent}
+                                                </Link>
+                                            );
+                                        })()}
 
                                         {/* Right — Join Call + Share or Processing */}
                                         <div className="flex items-center gap-2">
                                             {(() => {
-                                                const isProcessing = row.rawStatus === 'IN_PROGRESS' && (new Date(row.scheduledTime).getTime() + row.duration * 60000) < Date.now();
-                                                
+                                                const endMs = new Date(row.scheduledTime).getTime() + row.duration * 60000;
+                                                const isProcessing = row.rawStatus === 'IN_PROGRESS' && endMs < Date.now();
+                                                const isOverdue = row.rawStatus === 'CONFIRMED' && row.type !== 'IN_PERSON' && endMs < Date.now();
+
                                                 if (isProcessing) {
                                                     return (
                                                         <div className="bg-indigo-50 text-indigo-700 border border-indigo-100 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
@@ -345,7 +401,27 @@ export default function DashboardHomePage() {
                                                     );
                                                 }
 
+                                                if (isOverdue) {
+                                                    return (
+                                                        <span className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-default">
+                                                            <AlertTriangle size={14} />
+                                                            Overdue
+                                                        </span>
+                                                    );
+                                                }
+
                                                 if (row.rawStatus === 'COMPLETED' || row.rawStatus === 'CANCELLED' || row.rawStatus === 'NO_SHOW') {
+                                                    if (row.type === 'IN_PERSON') {
+                                                        return (
+                                                            <button
+                                                                onClick={() => openSheet(row.patientId)}
+                                                                className="bg-white border border-gray-200 hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-lg text-xs font-medium transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                                                            >
+                                                                <CalendarCheck size={14} />
+                                                                Open Patient
+                                                            </button>
+                                                        );
+                                                    }
                                                     return (
                                                         <button 
                                                             onClick={() => setSummaryModalId(row.id)}
@@ -360,13 +436,23 @@ export default function DashboardHomePage() {
                                                 return (
                                                     <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2">
                                                         <ShareButton appointmentId={row.id} patientName={row.name} brandName={branding.name} variant="subtle" />
-                                                        <Link
-                                                            href={`/consultation/${row.id}`}
-                                                            className="border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-200 hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer flex items-center gap-1.5"
-                                                        >
-                                                            <Video size={12} />
-                                                            Join Call
-                                                        </Link>
+                                                        {row.type === 'IN_PERSON' ? (
+                                                            <button
+                                                                onClick={() => openSheet(row.patientId)}
+                                                                className="border border-emerald-200 bg-white hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer flex items-center gap-1.5"
+                                                            >
+                                                                <CalendarCheck size={12} />
+                                                                View Patient
+                                                            </button>
+                                                        ) : (
+                                                            <Link
+                                                                href={`/consultation/${row.id}`}
+                                                                className="border border-gray-200 bg-white hover:bg-indigo-50 hover:border-indigo-200 hover:text-[var(--brand-primary)] text-gray-700 px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer flex items-center gap-1.5"
+                                                            >
+                                                                <Video size={12} />
+                                                                Join Call
+                                                            </Link>
+                                                        )}
                                                     </div>
                                                 );
                                             })()}
