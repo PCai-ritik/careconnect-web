@@ -6,14 +6,16 @@ import { useRouter } from "next/navigation";
 import {
     X, FileText, User, Package, ChevronDown, ChevronRight,
     Heart, Activity, Thermometer, TrendingUp, AlertCircle,
-    Phone, MapPin, Droplets, Calendar, Clock, Video, Loader2,
+    Phone, MapPin, Droplets, Calendar, Clock, Video, Loader2, Sparkles,
 } from "lucide-react";
 import {
     getPatientRecords,
     getDoctorProfile,
     createAppointment,
+    getPostCallSummary,
     type PatientResponse,
     type MedicalRecordResponse,
+    type PostCallSummaryResponse,
 } from "@/lib/dashboard";
 import { getMe } from "@/lib/auth";
 import { useLockBodyScroll } from "@/hooks/useLockBodyScroll";
@@ -33,6 +35,49 @@ function fmtDate(iso: string | null): string {
     if (!iso) return "—";
     const d = new Date(iso);
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function PostCallSummaryBlock({ appointmentId }: { appointmentId: string }) {
+    const [summary, setSummary] = useState<PostCallSummaryResponse | null>(null);
+    useEffect(() => {
+        if (!appointmentId) return;
+        getPostCallSummary(appointmentId).then(setSummary).catch(() => {});
+    }, [appointmentId]);
+
+    if (!summary || (!summary.diagnosis && !summary.treatment_plan)) return null;
+    
+    let diagnosis = summary.diagnosis || "";
+    let treatmentPlan = summary.treatment_plan || "";
+    let followUp = summary.follow_up || "";
+
+    return (
+        <div className="mt-4 bg-indigo-50/50 rounded-xl p-4 border border-indigo-100">
+            <div className="flex items-center gap-1.5 mb-3">
+                <Sparkles size={14} className="text-indigo-600" />
+                <p className="text-xs font-semibold text-indigo-700 uppercase tracking-wider">AI Consultation Summary</p>
+            </div>
+            <div className="space-y-3">
+                {diagnosis && (
+                    <div>
+                        <p className="text-[11px] font-bold text-indigo-400 uppercase">Diagnosis</p>
+                        <p className="text-sm text-indigo-900 mt-0.5">{diagnosis}</p>
+                    </div>
+                )}
+                {treatmentPlan && (
+                    <div>
+                        <p className="text-[11px] font-bold text-indigo-400 uppercase">Treatment Plan</p>
+                        <p className="text-sm text-indigo-900 mt-0.5">{treatmentPlan}</p>
+                    </div>
+                )}
+                {followUp && (
+                    <div>
+                        <p className="text-[11px] font-bold text-indigo-400 uppercase">Follow Up</p>
+                        <p className="text-sm text-indigo-900 mt-0.5">{followUp}</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }
 
 /* ── History Tab ─────────────────────────────────────────────────────── */
@@ -161,6 +206,10 @@ function HistoryTab({ records, loading }: { records: MedicalRecordResponse[]; lo
                                                         Follow-up: {fmtDate(c.follow_up_date)}
                                                     </p>
                                                 </div>
+                                            )}
+
+                                            {c.appointment_id && (
+                                                <PostCallSummaryBlock appointmentId={c.appointment_id} />
                                             )}
                                         </div>
                                     </motion.div>
@@ -456,14 +505,6 @@ export default function PatientProfileSheet({
                                     New Prescription
                                 </button>
                             )}
-
-                            {/* View full history */}
-                            <button
-                                onClick={() => setActiveTab("history")}
-                                className="w-full text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer py-1"
-                            >
-                                View Full Medical History
-                            </button>
                         </div>
                     </motion.div>
                 </>

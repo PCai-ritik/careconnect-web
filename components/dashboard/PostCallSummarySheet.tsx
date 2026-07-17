@@ -253,21 +253,7 @@ export default function PostCallSummarySheet({
                             ) : null}
                         </div>
 
-                        {/* Footer */}
-                        <div className="p-5 border-t border-gray-200 bg-gray-50 shrink-0">
-                            <button
-                                disabled={!summary}
-                                className={`w-full py-2.5 rounded-xl font-medium shadow-sm transition-all flex items-center justify-center gap-2 text-sm ${
-                                    !summary
-                                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                        : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
-                                }`}
-                                onClick={() => alert("Downloading PDF... (Stub)")}
-                            >
-                                <Download size={16} />
-                                Download PDF
-                            </button>
-                        </div>
+
                     </motion.div>
                 </>
             )}
